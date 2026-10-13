@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Die Alte Fabrik</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<!-- Ladebildschirm -->
+<div id="loading" class="screen">
+  <div class="card center">
+    <div class="logo">Die Alte Fabrik</div>
+    <div class="muted" id="loadingText">Die Fabrik wird geladen …</div>
+  </div>
+</div>
+
+<!-- Anmeldung -->
+<div id="login" class="screen hidden">
+  <form class="card" id="loginForm" autocomplete="off">
+    <div class="logo">Die Alte Fabrik</div>
+    <p class="muted">Einst donnerten hier Pressen und Zahnräder. Melde dich an und bring die Hallen wieder zum Leben.</p>
+    <label>Gamertag<input id="inTag" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="z. B. AuTim" required></label>
+    <label>PIN<input id="inPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="4 Ziffern" required></label>
+    <label class="check"><input type="checkbox" id="inRemember" checked> Auf diesem Gerät angemeldet bleiben</label>
+    <button type="submit" class="btn primary" id="btnLogin">Fabrik betreten</button>
+    <div class="error" id="loginError"></div>
+    <div class="muted small" id="mockHint"></div>
+  </form>
+</div>
+
+<!-- Figur wählen -->
+<div id="avatarPick" class="screen hidden">
+  <div class="card center">
+    <div class="logo small">Wähle deine Figur</div>
+    <div id="avatarList" class="avatars"></div>
+  </div>
+</div>
+
+<!-- Spiel-Oberfläche -->
+<div id="hud" class="hidden">
+  <div id="topbar">
+    <div id="who"><div><span id="whoTag"></span> <span id="whoLevel" class="badge"></span></div><div id="stand" class="muted small"></div></div>
+    <div id="res"></div>
+  </div>
+  <div id="zoom">
+    <button class="round" id="btnZoomIn" aria-label="Hineinzoomen">+</button>
+    <button class="round" id="btnZoomOut" aria-label="Herauszoomen">−</button>
+    <button class="round" id="btnCenter" aria-label="Zur Figur">◎</button>
+  </div>
+  <div id="decoHint" class="hidden"><span id="decoHintText"></span><button class="btn small" id="btnDecoDone">Fertig</button></div>
+  <div id="bottombar">
+    <button class="tab" id="btnQuests"><span class="ico">📖</span>Questbuch<span class="dot hidden" id="dotQuests"></span></button>
+    <button class="tab" id="btnBuild"><span class="ico">🏗️</span>Bauen</button>
+    <button class="tab" id="btnCollect"><span class="ico">📦</span>Abholen<span class="dot hidden" id="dotCollect"></span></button>
+    <button class="tab" id="btnDeco"><span class="ico">🌲</span>Deko</button>
+    <button class="tab" id="btnMenu"><span class="ico">☰</span>Menü</button>
+  </div>
+</div>
+
+<!-- Panel (Bottom Sheet) -->
+<div id="sheet" class="hidden">
+  <div class="sheet-inner">
+    <button class="close" id="sheetClose" aria-label="Schließen">✕</button>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+<div id="busy" class="hidden"><div class="spinner"></div></div>
+
+<script src="js/config.js"></script>
+<script src="js/tilemap.js"></script>
+<script src="js/server-logic.js"></script>
+<script src="js/mock.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
