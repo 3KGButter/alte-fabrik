@@ -1,7 +1,7 @@
 // ============ EINSTELLUNGEN DES SPIELS ============
 // Nach dem Veröffentlichen des Apps Scripts hier die Web-App-URL eintragen.
 // Leer lassen = Vorschau-Modus ohne Server (Daten nur auf diesem Gerät).
-window.API_URL = '';
+   window.API_URL = 'https://script.google.com/macros/s/AKfycbzMcUk6jh7ICRbSCgIS3m-cb2s1sW-Lc_QrAt6P0RNWzYOZXm5bdWyFvqWAVj8Qh0TK/exec';
 
 // ============ KARTE: Bereiche, Gebäude, Questpfade (Kachel-Koordinaten der RPG-Maker-Karte "alte Fabrik") ============
 window.LAYOUT = {
