@@ -1,5 +1,6 @@
-// Zeichnet eine RPG-Maker-MZ-Karte (Map + Tileset) auf Canvas.
+// Zeichnet RPG-Maker-MZ-Karten auf Canvas und prüft die Begehbarkeit wie RPG Maker.
 // Nachbau der MZ-Tile-Logik (Autotiles A1–A4, normale Tiles A5/B–E, Schatten, Sternchen-Tiles).
+// Ruinen: pro Kachel kommt der Inhalt aus der reparierten Karte oder aus dem Ruinen-Zwilling.
 'use strict';
 const TM = (() => {
   const T = 48, H = 24;
@@ -83,48 +84,60 @@ const TM = (() => {
     for (let i = 0; i < 4; i++) if (bits & (1 << i)) ctx.fillRect(dx + (i % 2) * H, dy + Math.floor(i / 2) * H, H, H);
   }
 
+  const cache = {};
   function loadImage(src) {
-    return new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => { console.warn('fehlt', src); res(null); }; im.src = src; });
+    if (!cache[src]) cache[src] = new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => { console.warn('fehlt', src); res(null); }; im.src = src; });
+    return cache[src];
   }
 
-  // Liefert {lower: Canvas[3], upper: Canvas[3]} (3 Animationsframes für Wasser)
-  async function render(map, base, nFrames) {
-    nFrames = nFrames || 1;
-    const imgs = await Promise.all(map.tilesetNames.map(n => n ? loadImage(base + 'tilesets/' + n + '.png') : null));
-    const W = map.width, Hh = map.height, d = map.data, f = map.flags;
-    const at = (x, y, z) => d[(z * Hh + y) * W + x] || 0;
-    const frames = [];
-    for (let fr = 0; fr < nFrames; fr++) {
-      const lo = document.createElement('canvas'), up = document.createElement('canvas');
-      lo.width = up.width = W * T; lo.height = up.height = Hh * T;
-      const lc = lo.getContext('2d'), uc = up.getContext('2d');
+  // Baut eine Karte aus world.json: def = world.maps[id], ts = world.tilesets[def.ts]
+  async function build(def, ts, base) {
+    const imgs = await Promise.all(ts.names.map(n => n ? loadImage(base + 'tilesets/' + n + '.png') : null));
+    const W = def.w, Hh = def.h, N = W * Hh, f = ts.flags;
+    const M = { W, H: Hh, def, flags: f, imgs, mask: new Uint8Array(N), lower: null, upper: null };
+    const src = (x, y) => (M.mask[y * W + x] && def.ruin) ? def.ruin : def.data;
+    M.tile = (x, y, z) => src(x, y)[(z * Hh + y) * W + x] || 0;
+    M.region = (x, y) => def.data[(5 * Hh + y) * W + x] || 0;
+    M.inside = (x, y) => x >= 0 && y >= 0 && x < W && y < Hh;
+    // MZ: Game_Map.checkPassage – von oben nach unten entscheidet die erste Kachel ohne Stern
+    M.passDir = (x, y, d) => {
+      const bit = (1 << (d / 2 - 1)) & 0x0f;
+      for (let z = 3; z >= 0; z--) {
+        const fl = f[M.tile(x, y, z)] || 0;
+        if (fl & 0x10) continue;
+        if ((fl & bit) === 0) return true;
+        if ((fl & bit) === bit) return false;
+      }
+      return false;
+    };
+    // Zeichnen (neu, wenn sich die Ruinen-Maske ändert)
+    M.draw = () => {
+      if (!M.lower) { M.lower = document.createElement('canvas'); M.upper = document.createElement('canvas'); M.lower.width = M.upper.width = W * T; M.lower.height = M.upper.height = Hh * T; }
+      const lc = M.lower.getContext('2d'), uc = M.upper.getContext('2d');
+      lc.clearRect(0, 0, W * T, Hh * T); uc.clearRect(0, 0, W * T, Hh * T);
       for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
         const dx = x * T, dy = y * T;
         for (let z = 0; z < 4; z++) {
-          const id = at(x, y, z);
-          if (z === 2) drawShadow(lc, at(x, y, 4), dx, dy);
+          const id = M.tile(x, y, z);
+          if (z === 2) drawShadow(lc, M.tile(x, y, 4), dx, dy);
           const upper = !isAuto(id) ? (f[id] & 0x10) : false;
-          drawTile(upper ? uc : lc, imgs, f, id, dx, dy, fr);
+          drawTile(upper ? uc : lc, imgs, f, id, dx, dy, 0);
         }
       }
-      frames.push({ lower: lo, upper: up });
-    }
-    // Begehbarkeit (vereinfacht wie MZ: von oben nach unten der erste Tile ohne Stern entscheidet)
-    const pass = new Uint8Array(W * Hh);
-    for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
-      let ok = 1;
-      for (let z = 3; z >= 0; z--) {
-        const id = at(x, y, z), fl = f[id] || 0;
-        if (id === 0 && z > 0) continue;
-        if (fl & 0x10) continue;          // Sternchen: egal
-        ok = (fl & 0x0f) === 0x0f ? 0 : 1; // alle 4 Richtungen gesperrt = unbegehbar
-        break;
+    };
+    // Maske setzen: ruinFn(x, y, region) -> true = Ruine zeigen. Liefert true, wenn neu gezeichnet wurde.
+    M.setRuins = (ruinFn) => {
+      let changed = !M.lower;
+      if (def.ruin) for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) {
+        const v = ruinFn(x, y, M.region(x, y)) ? 1 : 0;
+        if (M.mask[y * W + x] !== v) { M.mask[y * W + x] = v; changed = true; }
       }
-      pass[y * W + x] = ok;
-    }
-    const region = (x, y) => at(x, y, 5);
-    return { frames, pass, region, W, H: Hh };
+      if (changed) M.draw();
+      return changed;
+    };
+    M.drawTileAt = (ctx, id, dx, dy) => drawTile(ctx, imgs, f, id, dx, dy, 0);
+    return M;
   }
 
-  return { render, loadImage, T };
+  return { build, loadImage, T };
 })();

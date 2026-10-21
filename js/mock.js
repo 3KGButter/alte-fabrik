@@ -23,38 +23,33 @@ window.MockServer = (() => {
     Q('MS5', 1, 2500, '1. Arbeitsprobe')
   ].map(q => Object.assign(q, { hq: !!q.hq }));
 
-  // Vorschau-Fortschritt: MS1 + MS2 komplett, MS3 die ersten 6 Quests
-  const done = (q, i) => q.ms === 'MS1' || q.ms === 'MS2' || (q.ms === 'MS3' && i < 18);
-  const profile = { xp: 2950, level: 8, stufe: 'Zeichenbrettbrecher', klasse: 'Vorschau' };
-  const KEY = 'altefabrik_mock_state';
+  // Vorschau-Fortschritt: MS1–MS3 komplett, MS4 halb, 1. Arbeitsprobe bestanden
+  const done = (q, i) => q.ms !== 'MS4' || i % 2 === 0;
+  const profile = { xp: 9950, level: 12, stufe: 'Zeichenbrettbrecher', klasse: 'Vorschau' };
+  const KEY = 'altefabrik_mock_state2';
   let offset = 0; // Zeitsprung für Produktionstest
-
-  function load() { try { const s = localStorage.getItem(KEY); if (s) return JSON.parse(s); } catch (e) {} return neuerStand_(); }
-  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+  try { offset = Number(localStorage.getItem(KEY + '_off')) || 0; } catch (e) {}
 
   function ctx() {
     const quests = QUESTS.map((q, i) => Object.assign({}, q, { done: done(q, i) }));
-    const allHq = ms => quests.filter(q => q.ms === ms && q.hq).every(q => q.done);
-    const areas = { ms1: true, ms2: allHq('MS1') };
-    areas.ms3 = areas.ms2 && allHq('MS2'); areas.ms4 = areas.ms3 && allHq('MS3'); areas.ms5 = areas.ms4;
-    return { quests, profile, areas, bossDefeated: quests.filter(q => q.ms === 'MS5').every(q => q.done), stand: new Date().toISOString() };
+    return kontextAusQuests_(quests, profile, new Date().toISOString());
   }
-  function answer(state) {
-    const c = ctx(), claimed = {};
-    (state.claimed || []).forEach(n => claimed[n] = true);
-    return { ok: true, now: Date.now() + offset, mock: true, user: { tag: 'Vorschau', klasse: 'Vorschau', xp: profile.xp, level: profile.level, stufe: profile.stufe },
-      quests: c.quests.map(q => Object.assign({}, q, { claimed: !!claimed[q.n] })), areas: c.areas, bossDefeated: c.bossDefeated, stand: c.stand, state, rules: REGELN };
+  function load(c) { let s = null; try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) {} return migriere_(s, c); }
+  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); localStorage.setItem(KEY + '_off', String(offset)); } catch (e) {} }
+  function answer(state, c) {
+    return Object.assign(antwort_({ tag: 'Vorschau', klasse: 'Vorschau' }, state, c), { now: Date.now() + offset, mock: true });
   }
   async function call(req) {
-    await new Promise(r => setTimeout(r, 250));
-    const state = load();
-    if (!req.action || req.action === 'login') return answer(state);
-    if (req.action === 'mockReset') { save(neuerStand_()); offset = 0; return answer(load()); }
-    if (req.action === 'mockSkip') { offset += 4 * 3600000; return Object.assign(answer(state), { msg: '+4 Stunden vorgespult' }); }
-    const res = aktion_(req.action, req, state, ctx(), Date.now() + offset);
-    if (!res.ok) return Object.assign(answer(state), { ok: false, error: res.error });
+    await new Promise(r => setTimeout(r, 200));
+    const c = ctx(), state = load(c);
+    if (!req.action || req.action === 'login') return answer(state, c);
+    if (req.action === 'mockReset') { offset = 0; const s = neuerStand_(); save(s); return answer(s, c); }
+    if (req.action === 'mockSkip') { offset += 12 * 3600000; save(state); return Object.assign(answer(state, c), { msg: '+12 Stunden vorgespult' }); }
+    if (req.action === 'mockRich') { state.gears = (state.gears || 0) + 500; save(state); return Object.assign(answer(state, c), { msg: '+500 Zahnräder' }); }
+    const res = aktion_(req.action, req, state, c, Date.now() + offset);
+    if (!res.ok) return Object.assign(answer(load(c), c), { ok: false, error: res.error });
     save(state);
-    return Object.assign(answer(state), { msg: res.msg || '' });
+    return Object.assign(answer(state, c), { msg: res.msg || '', got: res.got });
   }
   return { call };
 })();
