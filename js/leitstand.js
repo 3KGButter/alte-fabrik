@@ -3,7 +3,7 @@
 // Blättert von selbst weiter; Wischen, Pfeile, Tasten oder die Seitenleiste springen gezielt (dann wartet die Automatik länger).
 'use strict';
 const LEITSTAND = (() => {
-  const AUTO_MS = 25000, PAUSE_NACH_HAND_MS = 90000, NEU_LADEN_MS = 5 * 60000;
+  const AUTO_MS = 40000, PAUSE_NACH_HAND_MS = 90000, NEU_LADEN_MS = 5 * 60000;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const fmt = n => Math.round(Number(n) || 0).toLocaleString('de-DE');
   const KL_FARBEN = ['#ffbd5a', '#7fd4c4', '#f08a6a', '#a8b8ff', '#d9a0f0'];
@@ -56,9 +56,9 @@ const LEITSTAND = (() => {
     if (pg.id === 'vergleich') {
       const chart = (titel, wert, einheit) => {
         const max = Math.max(1, ...D.klassen.map(wert));
-        return `<figure class="lchart"><figcaption>${titel}</figcaption><div class="lbars">${D.klassen.map(k => `<div class="lbarcol"><span class="lbarval">${fmt(wert(k))}</span><div class="lbar" style="--h:${(wert(k) / max * 100).toFixed(1)}%;--kf:${klFarbe(k.klasse)}"></div><span class="lbarname">${esc(k.klasse)}</span></div>`).join('')}</div><div class="lchartfoot">${einheit}</div></figure>`;
+        return `<figure class="lchart"><figcaption>${titel}</figcaption><div class="lbars">${D.klassen.map(k => `<div class="lbarcol"><span class="lbarval">${fmt(wert(k))}</span><div class="lbar" style="--h:${(wert(k) / max * 100).toFixed(1)}%;--kf:${klFarbe(k.klasse)}"></div><span class="lbarname">${esc(k.klasse)}</span></div>`).join('')}</div></figure>`;
       };
-      return `<div class="lcharts">${chart('Gesamt-XP je Klasse', k => k.summe, 'XP zusammen')}${chart('Durchschnitt pro Schüler', k => k.schnitt, 'XP pro Schüler')}</div>`;
+      return `<div class="lcharts">${chart('Gesamt-XP je Klasse', k => k.summe, 'XP zusammen')}${chart('Durchschnitt XP pro Schüler', k => k.schnitt, 'XP pro Schüler')}</div>`;
     }
     if (pg.id.startsWith('kl:')) {
       const k = D.klassen[pg.kl], half = Math.ceil(k.liste.length / 2);
@@ -93,7 +93,7 @@ const LEITSTAND = (() => {
       <h1 class="lseite" id="lSeite" aria-live="polite"></h1>
       <div class="lrechts"><span class="luhr" id="lUhr"></span><span class="lstand" id="lStand"></span>
         <button class="lknopf" id="lPause" aria-label="Automatisch weiterblättern anhalten"></button><button class="lknopf" id="lVoll" aria-label="Vollbild">${ICO.voll}</button><button class="lknopf" id="lAus" aria-label="Abmelden">${ICO.aus}</button></div></header>
-      <main class="lrahmen"><div class="lschirm" id="lSchirm"></div></main>
+      <main class="lrahmen"><i class="lglanz" aria-hidden="true"></i><div class="lschirm" id="lSchirm"></div></main>
       <div class="lband" aria-hidden="true"></div>
       <nav class="lnav"><button class="lpfeil" id="lZur" aria-label="Vorherige Tafel">◀</button><div class="lchips" id="lChips" role="tablist" aria-label="Tafel wählen"></div><button class="lpfeil" id="lVor" aria-label="Nächste Tafel">▶</button></nav>`;
     document.body.appendChild(root);
