@@ -48,6 +48,7 @@ window.MockServer = (() => {
   }
   async function call(req) {
     await new Promise(r => setTimeout(r, 200));
+    if (String(req.tag || '').toLowerCase() === 'leitstand') return leitstandMock();   /* Leitstand der Lehrkraft mit erfundenen Gamertags */
     const c = ctx(), state = load(c);
     if (!req.action || req.action === 'login') return answer(state, c);
     if (req.action === 'mockReset') { offset = 0; const s = neuerStand_(); save(s); return answer(s, c); }
@@ -67,6 +68,18 @@ window.MockServer = (() => {
     if (!res.ok) return Object.assign(answer(load(c), c), { ok: false, error: res.error });
     save(state);
     return Object.assign(answer(state, c), { msg: res.msg || '', got: res.got });
+  }
+  function leitstandMock() {
+    const T = ['Zahnradprofi', 'Blechbieger', 'Fraesfuchs', 'Drehwurm', 'Gewindeguru', 'Kantenkoenig', 'Spaenesammler', 'Nutenmeister', 'Schraubstock', 'Messschieber', 'Pixelpresse', 'Kurbelkind', 'Stahlstern', 'Funkenflug', 'Hebelheld', 'Lochblech', 'Passfeder', 'Federring', 'Bolzenbaer', 'Rasterkatze', 'Tuschefee', 'Lineallotse', 'Zirkelzorro', 'Winkelwal', 'Skizzenspatz'];
+    const LV = [[0, '†', 'GameOver'], [1, 1, 'Noob'], [42, 2, 'Kritzelpraktikant'], [143, 3, 'Radierkrümelkönig'], [332, 4, 'Bleistiftmassakrierer'], [640, 5, 'Linienverwackler'], [1096, 6, 'Geodreieckamateur'], [1728, 7, 'Zirkelverbieger'], [2567, 8, 'Zeichenbrettbrecher'], [3640, 9, 'Geometrieguru'], [4976, 10, 'Zirkelbändiger'], [6602, 11, 'Zeichenbrett-Titan'], [8545, 12, 'Projektionsmajestro'], [10831, 13, ''], [13486, 14, 'Zeichenprofi'], [16536, 15, 'Meisterkonstrukteur'], [20003, 16, 'Chefingenieur']].map(([ab, level, stufe]) => ({ ab, level: String(level), stufe }));
+    const lvl = xp => { let l = LV[0]; LV.forEach(e => { if (xp >= e.ab) l = e; }); return l; };
+    const profile = {}, done = {}; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    [['11T1', 24], ['11T2', 21], ['11T3', 25], ['11T4', 18]].forEach(([kl, n], k) => { for (let i = 0; i < n; i++) {
+      const tag = T[i] + (k ? k + 1 : ''), xp = Math.round(300 + rnd() * rnd() * 9000 + (k === 2 ? 900 : 0)), l = lvl(xp);
+      profile[tag] = { xp, level: parseInt(l.level, 10) || 0, stufe: l.stufe, klasse: kl };
+      let left = xp; done[tag] = QUESTS.map(q => { if (left >= q.xp) { left -= q.xp; return '1'; } return '0'; }).join(''); } });
+    const snap = { quests: QUESTS, done, profile, ranks: {}, levels: LV, stand: new Date().toISOString(), at: Date.now() };
+    const r = leitstand_(snap); r.leitstand.badges.forEach(b => { if (b.id === 'b8') b.anzahl = 6; }); r.mock = true; return r;
   }
   return { call };
 })();

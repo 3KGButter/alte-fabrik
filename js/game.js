@@ -629,7 +629,7 @@
     { ic: ['plans', 'gears'], t: 'Reparieren', p: 'Für jeden offenen Bereich bekommst du einen Bauplan. Mit Bauplan und Zahnrädern reparierst du ein Gebäude. Dein erstes Ziel ist das Pförtnerhaus gleich hinter dem Tor.' },
     { ic: ['blech', 'power'], t: 'Maschinen arbeiten für dich', p: 'In den Gebäuden setzt du Maschinen wieder instand. Sie stellen Werkstücke her, auch wenn du gerade nicht da bist. Schau ab und zu vorbei und hol die produzierten Teile ab. Beachte, dass jede Maschine Strom benötigt!' },
     { ic: ['clip', 'cart', 'medal'], t: 'Aufträge, Katalog, Ehrentafel', p: 'Mit deinen Werkstücken kannst du die Wochenaufträge erfüllen und Dekoration für deine Fabrik kaufen. Deine Badges aus dem Questbuch hängen an der Ehrentafel im Pförtnerhaus.' },
-    { ic: ['store'], t: 'Schritt für Schritt', p: 'Schaffst du alle Hauptquests eines Meilensteins (MS), öffnet sich der nächste Bereich. Ganz rechts auf dem Hügel wacht der Kraft-Golem vor dem Kraftwerk. Jeder kleine Schritt zählt. Viel Spaß beim Wiederaufbau!' }
+    { ic: ['book', 'rank'], t: 'Schritt für Schritt', p: 'Schaffst du alle Hauptquests eines Meilensteins (MS), öffnet sich der nächste Bereich. Ganz rechts auf dem Hügel wacht der Kraft-Golem vor dem Kraftwerk. Jeder kleine Schritt zählt. Viel Spaß beim Wiederaufbau!' }
   ];
   let tutI = 0, tutMax = 0, badgeSel = -1;
   function modal(title, html, cls) { $('mTitle').textContent = title; $('mBody').innerHTML = html; $('modal').className = 'modal ' + (cls || ''); $('modal').classList.remove('hidden'); }
@@ -638,7 +638,7 @@
   function openTutorial(i) {
     const open = !$('modal').classList.contains('hidden') && $('mBody').querySelector('.tut');
     if (!open) {
-      modal('Am Eingangstor', `<div class="tut"><div class="tsign"><div class="tpages">${TUT.map((p, j) => `<section class="tpage" data-i="${j}" aria-hidden="true"><div class="tutic">${p.ic.map(k => `<img src="${IC[k]}" alt="">`).join('')}</div><h2>${esc(p.t)}</h2><p>${esc(p.p)}</p></section>`).join('')}</div></div>
+      modal('Am Eingangstor', `<div class="tut"><div class="tsign"><div class="tpages">${TUT.map((p, j) => `<section class="tpage" data-i="${j}" aria-hidden="true"><div class="tutic">${p.ic.map(k => `<img src="${IC['nav_' + k] || IC[k]}" alt="">`).join('')}</div><h2>${esc(p.t)}</h2><p>${esc(p.p)}</p></section>`).join('')}</div></div>
         <div class="tnav"><button class="btn" data-m="tprev">Zurück</button><div class="dots" aria-hidden="true">${TUT.map(() => '<span></span>').join('')}</div><button class="btn main" data-m="tnext"></button></div>
         <p class="tcount" aria-live="polite"></p></div>`, 'small tutm');
       tutMax = 0;
@@ -682,6 +682,11 @@
       const r = await api({ action: 'login' });
       if (!r.ok) { $('loginError').textContent = r.error || 'Anmeldung fehlgeschlagen.'; return false; }
       if (remember) store.set('altefabrik_cred', JSON.stringify({ tag, pin }));
+      if (r.leitstand) {   /* Lehrkraft: Leitstand statt Fabrik */
+        $('login').classList.add('hidden'); $('app').classList.add('hidden');
+        LEITSTAND.start(r.leitstand, () => api({ action: 'leitstand' }), () => { store.set('altefabrik_cred', ''); location.reload(); });
+        return true;
+      }
       apply(r);
       $('login').classList.add('hidden'); $('app').classList.remove('hidden');
       const u = unclaimed().length; if (u) setTimeout(() => toast(`Der Lieferwagen ist da: ${u} Kiste${u > 1 ? 'n' : ''} für dich!`), 600);
@@ -697,7 +702,9 @@
 
   (async function init() {
     const th = store.get('altefabrik_theme'); if (th) document.documentElement.dataset.theme = th;
-    [['quests', 'book'], ['factory', 'gears'], ['orders', 'clip'], ['catalog', 'cart'], ['badges', 'medal'], ['rank', 'rank'], ['menu', 'menu']].forEach(([a, k]) => { $('ico_' + a).src = IC['nav_' + k] || IC[k]; })   /* detaillierte Leistensymbole */;
+    [['quests', 'book'], ['factory', 'gears'], ['orders', 'clip'], ['catalog', 'cart'], ['badges', 'medal'], ['rank', 'rank'], ['menu', 'menu']].forEach(([a, k]) => { $('ico_' + a).src = IC['nav_' + k] || IC[k]; });
+  /* Leistensymbole so grob wie die Spielgrafik: 21 Symbolpixel x Pixelgröße des Werkshofs */
+  (() => { const st = $('stage'); if (!st || !window.ResizeObserver) return; const fit = () => { const k = st.clientWidth / W; if (k > 0) document.documentElement.style.setProperty('--icpx', Math.round(Math.max(30, Math.min(56, 21 * k))) + 'px'); }; new ResizeObserver(fit).observe(st); fit(); })()   /* detaillierte Leistensymbole */;
     try { if (document.fonts) await Promise.race([document.fonts.load('16px "Pixelify Sans"'), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
     $('loading').classList.add('hidden');
     requestAnimationFrame(frame);

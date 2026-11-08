@@ -149,6 +149,7 @@ function doPost(e) {
     const who = anmelden_(req.tag, req.pin);
     if (!who.ok) return json_(who);
     const action = req.action || 'login';
+    if (who.user.lehrer) return json_(leitstand_(snapshot_()));   // Leitstand: nur lesen, kein Spielstand
     if (action === 'login') { const ctx0 = kontext_(who.user); return json_(antwort_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx0), Date.now()), ctx0)); }
     if (action === 'rangliste') return json_(rangliste_(who.user, snapshot_(), req.klasse));   // nur lesen
 
@@ -200,6 +201,9 @@ function anmelden_(tag, pin) {
   // Demo-Zugang für die Lehrkraft (PIN in den Script-Eigenschaften: DEMO_PIN)
   const demoPin = PropertiesService.getScriptProperties().getProperty('DEMO_PIN');
   if (n === 'demo' && demoPin && pin === demoPin) return { ok: true, user: { tag: 'DEMO', klasse: 'Demo', demo: true } };
+  // Leitstand für die Lehrkraft (Tafel am Smartboard): Gamertag „Leitstand“, PIN in den Script-Eigenschaften: LEITSTAND_PIN (sonst DEMO_PIN)
+  const leitPin = PropertiesService.getScriptProperties().getProperty('LEITSTAND_PIN') || demoPin;
+  if (n === 'leitstand' && leitPin && pin === leitPin) { cache.remove(fKey); return { ok: true, user: { tag: 'Leitstand', klasse: '', lehrer: true } }; }
 
   const rows = zugangsliste_();
   const hit = rows.find(r => r.norm === n && r.pin === pin && r.aktiv);
@@ -291,6 +295,13 @@ function leseXpRechner_() {
     };
   }
 
+  // 1a) Leveltabelle (Spalten H–J, Zeilen 3–19): ab wie vielen XP welches Level und welche Stufe
+  const levels = [];
+  for (let r = 2; r <= 18 && r < xpVals.length; r++) {
+    const ab = String(xpVals[r][7] || '').trim(); if (ab === '') continue;
+    levels.push({ ab: Number(ab.replace(/\./g, '').replace(',', '.')) || 0, level: String(xpVals[r][8] || '').trim(), stufe: String(xpVals[r][9] || '').trim() });
+  }
+
   // 1b) Fertig sortierte Klassen-Ranglisten (Blöcke "Rangliste alle Schüler <Klasse>" im selben Blatt).
   //     Pro Zeile wird der Gamertag gesucht (oder ein Name, der über Spalte D/E auf einen Gamertag zeigt);
   //     ins Spiel gehen nur Gamertags, nie Namen.
@@ -333,7 +344,7 @@ function leseXpRechner_() {
   }
   let stand = '';
   try { stand = DriveApp.getFileById(XP_RECHNER_ID).getLastUpdated().toISOString(); } catch (e) {}
-  return { quests: quests.map(q => ({ n: q.n, ms: q.ms, hq: q.hq, xp: q.xp })), done: done, profile: profile, ranks: ranks, stand: stand, at: Date.now() };
+  return { quests: quests.map(q => ({ n: q.n, ms: q.ms, hq: q.hq, xp: q.xp })), done: done, profile: profile, ranks: ranks, levels: levels, stand: stand, at: Date.now() };
 }
 
 // Fortschritt eines Spielers (aus Snapshot) + freigeschaltete Bereiche + Plaketten
@@ -390,6 +401,36 @@ function rangliste_(user, snap, wunsch) {
   const kl = (prof[user.tag] || {}).klasse || user.klasse || '';
   const all = liste(kl), me = all.find(e => e.tag === user.tag) || null;
   return { ok: true, klasse: kl, liste: all.slice(0, 10), ich: me, gesamt: all.length };
+}
+
+// ===================== LEITSTAND (Tafel der Lehrkraft, nur lesen) =====================
+// Alle Klassenranglisten, Top 10 aller Klassen, Summen und Durchschnitte, Leveltabelle, Anzahl verliehener Badges.
+// Es gehen nur Gamertags, Klassen und Zahlen hinaus.
+function leitstand_(snap) {
+  const prof = snap.profile || {}, tags = Object.keys(prof);
+  const rl = rangliste_({ demo: true }, snap, '');
+  const klassen = rl.klassen.map(kl => {
+    const liste = rangliste_({ demo: true }, snap, kl).liste;
+    const summe = liste.reduce((a, e) => a + e.xp, 0);
+    return { klasse: kl, liste: liste, summe: summe, schnitt: liste.length ? Math.round(summe / liste.length) : 0, anzahl: liste.length };
+  });
+  const top = tags.map(t => ({ tag: t, klasse: prof[t].klasse || '', xp: prof[t].xp || 0, level: prof[t].level || 0, stufe: prof[t].stufe || '' }))
+    .sort((a, b) => b.xp - a.xp).slice(0, 10).map((e, i) => Object.assign(e, { p: i + 1 }));
+  const gesamt = tags.reduce((a, t) => a + (prof[t].xp || 0), 0);
+  let quests = 0; const zaehl = {}; REGELN.badges.forEach(b => zaehl[b.id] = 0);
+  Object.keys(snap.done || {}).forEach(t => {
+    const bits = snap.done[t]; quests += (bits.match(/1/g) || []).length;
+    const qs = snap.quests.map((q, i) => Object.assign({}, q, { done: bits.charAt(i) === '1' }));
+    kontextAusQuests_(qs, prof[t] || {}, '').badges.forEach(b => { if (b.ok && b.id !== 'b8') zaehl[b.id]++; });
+  });
+  try {   // Mecha-Ingenieur steht nur im Spielstand
+    const sh = standBlatt_(), n = sh.getLastRow() - 1;
+    if (n > 0) sh.getRange(2, 2, n, 1).getValues().forEach(r => { try { if ((JSON.parse(r[0]).mecha || 0) >= REGELN.mecha.length) zaehl.b8++; } catch (e) {} });
+  } catch (e) { console.warn('Spielstände nicht lesbar', e); }
+  return { ok: true, leitstand: {
+    klassen: klassen, top: top, gesamtXp: gesamt, schueler: tags.length, quests: quests,
+    levels: snap.levels || [], badges: REGELN.badges.map(b => ({ id: b.id, name: b.name, color: b.color, anzahl: zaehl[b.id] })),
+    stand: snap.stand, at: snap.at } };
 }
 
 // ===================== SPIELSTÄNDE =====================
@@ -900,7 +941,7 @@ function datenschutzPruefen() { return datenschutzUmstellung_(false); }
 function datenschutzUmstellen() { return datenschutzUmstellung_(true); }
 function datenschutzUmstellung_(schreiben) {
   const ss = SpreadsheetApp.openById(XP_RECHNER_ID);
-  const xr = ss.getSheetByName(BLATT_XP), dm = ss.getSheetByName('Daten Mebis'), qb = ss.getSheetByName(BLATT_QUESTBUCH);
+  const xr = ss.getSheetByName(BLATT_XP), dm = ss.getSheetByName('aus Mebis Umwandler') || ss.getSheetByName('Daten Mebis'), qb = ss.getSheetByName(BLATT_QUESTBUCH);
   if (!xr || !dm || !qb) throw new Error('Blatt nicht gefunden: ' + BLATT_XP + ', Daten Mebis oder ' + BLATT_QUESTBUCH);
   const n = Math.max(0, xr.getLastRow() - 2);
   const xv = n ? xr.getRange(3, 1, n, 5).getDisplayValues() : [];   // A..E
@@ -998,8 +1039,8 @@ function xpRechnerErneuern_(ss) {
       if (i === 0) return null;   // Spalte A: verbundene Klassenbeschriftung, wird unten je Block gesetzt
       if (i === 1) return '=' + XP + '!D' + (q - QB_VERSATZ);
       if (!f) return '';
-      const v = f.match(/VLOOKUP\(\s*B\d+\s*[;,]\s*'Daten Mebis'!\$A\$2:\$HS\$\d+\s*[;,]\s*(\d+)\s*[;,]/i);   // Mebis-Spalte (auch wenn schon umhüllt)
-      if (v) return L_('=IF(TRIM(B' + q + ')="","",IFERROR(VLOOKUP(B' + q + ",'Daten Mebis'!$A$2:$HS$400," + v[1] + ',FALSE),""))');
+      const v = f.match(/VLOOKUP\(\s*B\d+\s*[;,]\s*'([^']+)'!\$A\$2:\$HS\$\d+\s*[;,]\s*(\d+)\s*[;,]/i);   /* Blattname egal (umbenannt in „aus Mebis Umwandler“) */   // Mebis-Spalte (auch wenn schon umhüllt)
+      if (v) return L_('=IF(TRIM(B' + q + ')="","",IFERROR(VLOOKUP(B' + q + ",'" + v[1] + "'!$A$2:$HS$400," + v[2] + ',FALSE),""))');
       return zeileVerschieben_(f, Q0, q);
     }));
   }
