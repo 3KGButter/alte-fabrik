@@ -1,0 +1,9 @@
+<!doctype html><html><body style="margin:0;background:#11172a"><canvas id=c width=384 height=200 style="width:1152px;height:600px;image-rendering:pixelated"></canvas>
+<script src="js/ufer_spr.js"></script><script src="js/art.js"></script><script src="js/overlay.js"></script><script src="js/scene.js"></script><script src="js/interior.js"></script><script>
+const P=new URLSearchParams(location.search),c=document.getElementById('c'),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;
+const room=P.get('r'),state=P.get('s')||'running',t=+(P.get('t')||.45);
+const s={};Object.keys(INNER.ROOMS[room].stations).forEach(id=>s[id]={state,level:2,crate:state==='running'});
+const st={built:P.get('b')!=='0',s,placed:{1:'blumen'},showSlots:1,badges:['bronze','silber',null,'gold'],orders:2,owned:{katze:1}};
+let time=0;for(let i=0;i<40;i++){time+=1/30;INNER.draw(ctx,room,st,t,time,1/30)}
+document.title='done';
+</script></body></html>

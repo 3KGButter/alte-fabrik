@@ -2,83 +2,72 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Die Alte Fabrik</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=114">
 </head>
 <body>
-<canvas id="world"></canvas>
-
-<!-- Ladebildschirm -->
-<div id="loading" class="screen">
-  <div class="card center">
-    <div class="logo">Die Alte Fabrik</div>
-    <div class="muted" id="loadingText">Die Fabrik wird geladen …</div>
-  </div>
+<div class="app hidden" id="app">
+  <header>
+    <h1>Die Alte Fabrik <span class="mtitle" id="mtitle" hidden></span></h1>
+    <div class="hrow"><div class="res" id="res"></div><span class="clock" id="clock"></span><button class="sndbtn" id="sndBtn" title="Geräusche an/aus" aria-label="Geräusche an oder aus"></button></div>
+  </header>
+  <main>
+    <div class="views" id="views" role="tablist" aria-label="Ort wählen"></div>
+    <div class="stage" id="stage">
+      <canvas id="game" width="384" height="200" aria-label="Spielfeld"></canvas>
+      <div class="toast" id="toast" role="status"></div>
+      <div class="placehint hidden" id="placeHint"><span id="placeText"></span><button class="btn" id="placeDone" aria-label="Aufstellen beenden">✕ Fertig</button></div>
+    </div>
+    <nav class="actions-bar" id="bar">
+      <button class="abtn" data-p="quests" title="Questbuch" aria-label="Questbuch"><img id="ico_quests" alt=""><span class="badge" id="b_quests" hidden></span></button>
+      <button class="abtn" data-p="factory" title="Fabrik" aria-label="Fabrik"><img id="ico_factory" alt=""></button>
+      <button class="abtn" data-p="orders" title="Aufträge" aria-label="Aufträge"><img id="ico_orders" alt=""><span class="badge" id="b_orders" hidden></span></button>
+      <button class="abtn" data-p="catalog" title="Katalog" aria-label="Katalog"><img id="ico_catalog" alt=""></button>
+      <button class="abtn" data-p="badges" title="Badges" aria-label="Badges"><img id="ico_badges" alt=""></button>
+      <button class="abtn" data-p="rank" title="Rangliste" aria-label="Rangliste"><img id="ico_rank" alt=""></button>
+      <button class="abtn" data-p="menu" title="Menü" aria-label="Menü"><img id="ico_menu" alt=""></button>
+    </nav>
+  </main>
+  <aside>
+    <section class="panel" id="panel"></section>
+  </aside>
 </div>
 
-<!-- Anmeldung -->
-<div id="login" class="screen hidden">
+<div class="screen" id="loading"><div class="card center"><canvas class="emblem" data-emblem width="1" height="1" aria-hidden="true"></canvas><div class="logo">Die Alte Fabrik</div><p class="muted" id="loadingText">Die Fabrik wird geladen …</p></div></div>
+<div class="screen hidden" id="login">
   <form class="card" id="loginForm" autocomplete="off">
+    <canvas class="emblem" data-emblem width="1" height="1" aria-hidden="true"></canvas>
     <div class="logo">Die Alte Fabrik</div>
-    <p class="muted">Einst donnerten hier Pressen und Zahnräder. Melde dich an und bring die Hallen wieder zum Leben.</p>
-    <label>Gamertag<input id="inTag" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="z. B. AuTim" required></label>
+    <p class="muted">Einst donnerten hier Pressen und Zahnräder. Melde dich an und erwecke die Hallen wieder zum Leben.</p>
+    <label>Gamertag<input id="inTag" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="z. B. SpMic" required></label>
     <label>PIN<input id="inPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="4 Ziffern" required></label>
     <label class="check"><input type="checkbox" id="inRemember" checked> Auf diesem Gerät angemeldet bleiben</label>
-    <button type="submit" class="btn primary" id="btnLogin">Fabrik betreten</button>
+    <button type="submit" class="btn main" id="btnLogin">Fabrik betreten</button>
     <div class="error" id="loginError"></div>
     <div class="muted small" id="mockHint"></div>
   </form>
 </div>
-
-<!-- Figur wählen -->
-<div id="avatarPick" class="screen hidden">
-  <div class="card center">
-    <div class="logo small">Wähle deine Figur</div>
-    <div id="avatarList" class="avatars"></div>
-  </div>
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="mbox"><div class="mhead"><span id="mTitle"></span><button class="btn x" data-m="close" aria-label="Schließen">✕</button></div><div id="mBody"></div></div>
 </div>
-
-<!-- Spiel-Oberfläche -->
-<div id="hud" class="hidden">
-  <div id="topbar">
-    <div id="who"><div><span id="whoTag"></span> <span id="whoLevel" class="badge"></span></div><div id="stand" class="muted small"></div></div>
-    <div id="res"></div>
-  </div>
-  <div id="zoom">
-    <button class="round" id="btnZoomIn" aria-label="Hineinzoomen">+</button>
-    <button class="round" id="btnZoomOut" aria-label="Herauszoomen">−</button>
-    <button class="round" id="btnCenter" aria-label="Zur Figur">◎</button>
-  </div>
-  <div id="decoHint" class="hidden"><span id="decoHintText"></span><button class="btn small" id="btnDecoDone">Fertig</button></div>
-  <div id="bottombar">
-    <button class="tab" id="btnQuests"><span class="ico">📖</span>Quests<span class="dot hidden" id="dotQuests"></span></button>
-    <button class="tab" id="btnFactory"><span class="ico">🏭</span>Fabrik</button>
-    <button class="tab" id="btnCollect"><span class="ico">📦</span>Abholen<span class="dot hidden" id="dotCollect"></span></button>
-    <button class="tab" id="btnOrders"><span class="ico">📋</span>Aufträge<span class="dot hidden" id="dotOrders"></span></button>
-    <button class="tab" id="btnCatalog"><span class="ico">🛒</span>Katalog</button>
-    <button class="tab" id="btnMenu"><span class="ico">☰</span>Menü</button>
-  </div>
-</div>
-
-<!-- Panel (Bottom Sheet) -->
-<div id="sheet" class="hidden">
-  <div class="sheet-inner">
-    <button class="close" id="sheetClose" aria-label="Schließen">✕</button>
-    <div id="sheetBody"></div>
-  </div>
-</div>
-
-<div id="mapName" class="hidden"></div>
-<div id="toast" class="hidden"></div>
 <div id="busy" class="hidden"><div class="spinner"></div></div>
 
-<script>window.ASSET_V = 3;</script>
-<script src="js/config.js?v=3"></script>
-<script src="js/tilemap.js?v=3"></script>
-<script src="js/server-logic.js?v=3"></script>
-<script src="js/mock.js?v=3"></script>
-<script src="js/game.js?v=3"></script>
+<script src="js/config.js?v=114"></script>
+<script src="js/server-logic.js?v=114"></script>
+<script src="js/mock.js?v=114"></script>
+<script src="js/ufer_spr.js?v=114"></script>
+<script src="js/badges.js?v=114"></script>
+<script src="js/sounds-data.js?v=114"></script>
+<script src="js/sfx.js?v=114"></script>
+<script src="js/art.js?v=114"></script>
+<script src="js/workers.js?v=114"></script>
+<script src="js/overlay.js?v=114"></script>
+<script src="js/icons.js?v=114"></script>
+<script src="js/scene.js?v=114"></script>
+<script src="js/interior.js?v=114"></script>
+<script src="js/badgeroom.js?v=114"></script>
+<script src="js/game.js?v=114"></script>
 </body>
 </html>
