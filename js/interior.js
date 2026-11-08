@@ -1719,5 +1719,5 @@ const INNER = (() => {
   const CATS = {};
   const CATBIG = S(['jj.....jj....', 'jij...jij....', 'jjjjjjjjj....', 'jAjjjjAjj...j', 'jjjjhjjjj..j.', '.jjjjjjjjjjj.', '.jjjjjjjjjjj.', '.jj.jj..jj.jj', '.hh.hh..hh.hh']);
 
-  return { gim: (name, o) => { GIM[name] = Object.assign({}, o || {}); }, MNEXT, draw, HIT, ROOMS, FLOOR, DSI, MECHA_STAGES, MECHA, mechaPose, MECHA_F, mechaFrontPose, mechaSidePose, SPOT };
+  return { CRATE, gim: (name, o) => { GIM[name] = Object.assign({}, o || {}); }, MNEXT, draw, HIT, ROOMS, FLOOR, DSI, MECHA_STAGES, MECHA, mechaPose, MECHA_F, mechaFrontPose, mechaSidePose, SPOT };
 })();

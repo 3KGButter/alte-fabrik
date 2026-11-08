@@ -150,7 +150,13 @@ function doPost(e) {
     if (!who.ok) return json_(who);
     const action = req.action || 'login';
     if (who.user.lehrer) return json_(leitstand_(snapshot_()));   // Leitstand: nur lesen, kein Spielstand
-    if (action === 'login') { const ctx0 = kontext_(who.user); return json_(antwort_(who.user, demoAusbau_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx0), Date.now())), ctx0)); }
+    if (action === 'login') {
+      const ctx0 = kontext_(who.user), st0 = demoAusbau_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx0), Date.now()));
+      if (allesAusgebaut_(st0) && st0.gears) {   // alles ausgebaut: übrige Zahnräder verfallen (auch für alte Spielstände)
+        const lk = LockService.getScriptLock(); if (lk.tryLock(10000)) { try { st0.gears = 0; speichereStand_(who.user.tag, st0); } finally { lk.releaseLock(); } }
+      }
+      return json_(antwort_(who.user, st0, ctx0));
+    }
     if (action === 'rangliste') return json_(rangliste_(who.user, snapshot_(), req.klasse));   // nur lesen
 
     // Schreibende Aktionen: nacheinander abarbeiten. Alles, was nur liest (XP-Rechner, Zugänge), passiert vorher,
@@ -621,7 +627,9 @@ function platzOk_(t, m, x, y) {
 
 // Alles gebaut und jede Maschine auf Stufe 3: Zahnräder werden nicht mehr gebraucht und auf 0 gesetzt
 function allesAusgebaut_(state) {
-  return Object.keys(REGELN.buildings).every(b => state.b[b]) && Object.keys(REGELN.stations).every(id => state.st[id] && state.st[id].lvl >= 3);
+  if (!state || !state.b || !state.st) return false;
+  // Notstrom zählt nicht mehr, sobald das Kraftwerk steht (dann ist es ausgeschaltet und lässt sich nicht mehr ausbauen)
+  return Object.keys(REGELN.buildings).every(b => state.b[b]) && Object.keys(REGELN.stations).every(id => (id === 'notstrom' && state.b.kraftwerk) || (state.st[id] && state.st[id].lvl >= 3));
 }
 function aktion_(action, req, state, ctx, now) {
   const res = aktion0_(action, req, state, ctx, now);

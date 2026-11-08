@@ -5,7 +5,7 @@ const OVER = (() => {
   const CR = ART.buildSprite(['cddddddc', 'dffffffd', 'deeeeeed', 'dEaEEaEd', 'dccccccd', 'deeeeeed', 'cddddddc']);
   const OVER = {
     bubble(g, cx, by, c, q) { R(g, cx - 3, by - 10, 7, 9, '#2a2236'); R(g, cx - 2, by - 9, 5, 7, '#fff6e0'); if (q) { R(g, cx - 1, by - 8, 3, 1, c); R(g, cx + 1, by - 7, 1, 1, c); R(g, cx, by - 6, 1, 1, c); R(g, cx, by - 4, 1, 1, c); } else { R(g, cx, by - 8, 1, 3, c || '#d0394f'); R(g, cx, by - 4, 1, 1, c || '#d0394f'); } R(g, cx, by - 1, 1, 1, '#2a2236'); },
-    crate(g, cx, by) { g.globalAlpha = .3; R(g, cx - 4, by, 9, 1, '#1d1826'); g.globalAlpha = 1; g.drawImage(CR.c, cx - 5, by - 9); },   // Kiste ohne Hintergrundfläche, nur mit eigener Kontur
+    crate(g, cx, by) { const s = (typeof INNER !== 'undefined' && INNER.CRATE) || CR, w = s.c.width, h = s.c.height; g.globalAlpha = .3; R(g, cx - (w >> 1) + 1, by, w - 2, 1, '#1d1826'); g.globalAlpha = 1; g.drawImage(s.c, cx - (w >> 1), by - h); },   /* dieselbe Holzkiste wie in den Hallen */   // Kiste ohne Hintergrundfläche, nur mit eigener Kontur
     lock(g, cx, by) { R(g, cx - 3, by - 8, 7, 6, '#2a2236'); R(g, cx - 2, by - 7, 5, 4, '#e8a83a'); R(g, cx - 2, by - 11, 1, 3, '#2a2236'); R(g, cx + 2, by - 11, 1, 3, '#2a2236'); R(g, cx - 1, by - 12, 3, 1, '#2a2236'); R(g, cx, by - 6, 1, 2, '#2a2236'); },
     // Aufstell-Markierung: leuchtende Bodenplatte, hüpfender Pfeil und Plus-Blase
     spot(g, cx, b, w, time, i) {

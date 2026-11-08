@@ -50,7 +50,7 @@ window.MockServer = (() => {
     await new Promise(r => setTimeout(r, 200));
     if (String(req.tag || '').toLowerCase() === 'leitstand') return leitstandMock();   /* Leitstand der Lehrkraft mit erfundenen Gamertags */
     const c = ctx(), state = load(c);
-    if (!req.action || req.action === 'login') return answer(state, c);
+    if (!req.action || req.action === 'login') { if (allesAusgebaut_(state) && state.gears) { state.gears = 0; save(state); } return answer(state, c); }   /* wie der Server */
     if (req.action === 'mockReset') { offset = 0; const s = neuerStand_(); save(s); return answer(s, c); }
     if (req.action === 'mockBau') { if (state.bau) for (const k in state.bau) state.bau[k] = Date.now() + offset - 1000; bauFertig_(state, Date.now() + offset); save(state); return Object.assign(answer(state, c), { msg: 'Bauarbeiten abgeschlossen' }); }   /* nur für Tests */
     if (req.action === 'mockSkip') { offset += 12 * 3600000; save(state); return Object.assign(answer(state, c), { msg: '+12 Stunden vorgespult' }); }

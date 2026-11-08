@@ -186,8 +186,9 @@
     $('app').classList.toggle('needtut', !tutSeen());
     const st = S();
     const chip = (key, inner) => `<button class="chip" data-info="${key}" aria-label="${esc(INFO_NAME[key] || R().parts[key].name)}">${inner}</button>`;
-    let h = chip('gears', `${img('gears')}${fmt(gears())}`);
-    h += chip('plans', `${img('plans')}${Math.max(0, plans())}`);
+    let h = '';
+    h += chip('gears', `${img('gears')}${fmt(gears())}`);
+    if (!BUILDINGS.every(built)) h += chip('plans', `${img('plans')}${Math.max(0, plans())}`);   /* alle Gebäude repariert: keine Baupläne mehr nötig */
     if (stOf('notstrom') || built('kraftwerk')) h += chip('power', `${img('power')}${onCount_(st)}<span class="of">/${slotTxt(st)}</span>`);
     // Teilelager als eine Gruppe: einzelne Teile nebeneinander, darunter der Füllstand des Lagers
     const shown = PARTS.filter(k => (st.store[k] || 0) > 0);
