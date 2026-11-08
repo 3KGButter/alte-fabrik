@@ -187,7 +187,7 @@
     const st = S();
     const chip = (key, inner) => `<button class="chip" data-info="${key}" aria-label="${esc(INFO_NAME[key] || R().parts[key].name)}">${inner}</button>`;
     let h = '';
-    h += chip('gears', `${img('gears')}${fmt(gears())}`);
+    if (gears() > 0) h += chip('gears', `${img('gears')}${fmt(gears())}`);   /* wie bei den Teilen: bei 0 ausgeblendet */
     if (!BUILDINGS.every(built)) h += chip('plans', `${img('plans')}${Math.max(0, plans())}`);   /* alle Gebäude repariert: keine Baupläne mehr nötig */
     if (stOf('notstrom') || built('kraftwerk')) h += chip('power', `${img('power')}${onCount_(st)}<span class="of">/${slotTxt(st)}</span>`);
     // Teilelager als eine Gruppe: einzelne Teile nebeneinander, darunter der Füllstand des Lagers
