@@ -22,7 +22,7 @@ h1 { margin: 0; font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
 .clock { color: var(--muted); margin-left: auto; font-size: .95rem; }
 .res { display: flex; flex-wrap: wrap; gap: 5px; }
 .chip { font: inherit; color: var(--text); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 3px; background: var(--surface); border: 2px solid var(--line); border-radius: 3px; font-variant-numeric: tabular-nums; }
-.chip img { width: 28px; height: 28px; image-rendering: pixelated; }
+.chip img { width: var(--respx, 28px); height: var(--respx, 28px); image-rendering: pixelated; }
 .chip .of { color: var(--muted); font-size: .85rem; }
 main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 aside { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
@@ -328,7 +328,7 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .lrechts { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: #9ba7c2; font-size: .85em; }
 .luhr { font-size: 1.5em; color: var(--l-amber); font-variant-numeric: tabular-nums; }
 .lstand { max-width: 14em; text-align: right; line-height: 1.1; }
-.lknopf { min-width: 2.2em; height: 2.2em; padding: 0 .5em; border: 2px solid #3b4566; border-radius: 4px; background: var(--l-steel); color: #e7ebf5; font-size: 1em; }
+.lknopf { display: inline-grid; place-items: center; min-width: 2.2em; height: 2.2em; padding: 0 .5em; border: 2px solid #3b4566; border-radius: 4px; background: var(--l-steel); color: #e7ebf5; font-size: 1em; }
 .lknopf.an { border-color: var(--l-amber); color: var(--l-amber); }
 .lknopf.warn { border-color: #f08a6a; color: #ffd0b0; background: #4a2028; }
 .ltakt { height: 4px; background: #232a3d; border-radius: 2px; overflow: hidden; }
@@ -362,7 +362,10 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .llv { flex: none; width: 3.6em; color: var(--l-amber); }
 .lstufe { flex: 0 1 12em; color: var(--l-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9em; }
 .lxp { flex: none; min-width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
-.ltop li { font-size: 1.25em; }
+.ltop { width: min(100%, 50em); align-self: center; }
+.ltop .lkl { min-width: 3.6em; text-align: center; }
+.ltop li { font-size: 1.4em; }
+.ltop .lstufe { flex: 1 1 10em; }
 .lspalten { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(14px, 3vw, 48px); }
 .lkl li { font-size: 1.12em; padding: .06em .4em; }
 .lspalten .lliste { display: grid; grid-template-rows: repeat(var(--rows, 15), minmax(0, 1fr)); grid-template-columns: minmax(0, 1fr); align-content: stretch; justify-content: stretch; }
@@ -391,14 +394,14 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .lcharts { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 3vw, 56px); }
 .lchart { margin: 0; display: flex; flex-direction: column; min-height: 0; }
 .lchart figcaption { font-size: 1.3em; color: #fff1d2; text-align: center; margin-bottom: .4em; }
-.lbars { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: space-around; gap: 4%; border-bottom: 3px solid var(--l-dim); padding: 0 2%; }
-.lbarcol { flex: 1; max-width: 9em; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: .25em; }
+.lbars { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: space-around; gap: 4%; border-bottom: 3px solid var(--l-dim); padding: 0 2%; margin-bottom: 2.2em; }
+.lbarcol { flex: 1; max-width: 9em; height: 100%; position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: .25em; }
 .lbar { width: 100%; height: calc(var(--h) * .82); min-height: 4px; background: repeating-linear-gradient(0deg, var(--kf) 0 14px, color-mix(in srgb, var(--kf) 70%, #000) 14px 17px); border: 2px solid #000a; border-bottom: 0; border-radius: 3px 3px 0 0; animation: lwachs .9s ease-out; transform-origin: bottom; }
 @keyframes lwachs { from { transform: scaleY(0); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .lbar { animation: none; } }
 .lbarval { font-size: 1.15em; color: #fff1d2; font-variant-numeric: tabular-nums; }
-.lbarname { order: 3; margin-top: .3em; color: var(--l-amber); font-size: 1.1em; position: relative; top: .3em; }
-.lchartfoot { text-align: center; color: var(--l-dim); font-size: .85em; margin-top: 1em; }
+.lbarname { position: absolute; left: 0; right: 0; top: calc(100% + .55em); text-align: center; color: var(--l-amber); font-size: 1.1em; }
+.lchartfoot { text-align: center; color: var(--l-dim); font-size: .85em; }
 /* Badges */
 .lbadges { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: 1fr 1fr; gap: clamp(8px, 1.6vw, 24px); }
 .lbadge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25em; padding: .5em; background: #0a1a16aa; border: 2px solid var(--l-line); border-radius: 4px; text-align: center; min-height: 0; }
@@ -415,3 +418,10 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
   .lcharts { grid-template-columns: 1fr; } .lbadges { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; overflow: auto; }
   .lkacheln { grid-template-columns: repeat(2, 1fr); } .lspalten { grid-auto-flow: row; overflow: auto; } .lstufe, .lklhint { display: none; }
 }
+
+/* Lizenzen im Menü: aufklappbar */
+.lizenz { margin-top: 10px; border: 2px solid var(--line); border-radius: 4px; background: var(--surface2); }
+.lizenz summary { cursor: pointer; padding: 6px 10px; font-size: .85rem; color: var(--muted); list-style: none; }
+.lizenz summary::-webkit-details-marker { display: none; }
+.lizenz summary::before { content: '▸ '; } .lizenz[open] summary::before { content: '▾ '; }
+.lizenz > div { padding: 0 10px 8px; } .lizenz p { margin: 6px 0; }

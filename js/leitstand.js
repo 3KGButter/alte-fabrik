@@ -9,6 +9,13 @@ const LEITSTAND = (() => {
   const KL_FARBEN = ['#ffbd5a', '#7fd4c4', '#f08a6a', '#a8b8ff', '#d9a0f0'];
   let D = null, pages = [], idx = 0, timer = 0, t0 = 0, dauer = AUTO_MS, pausiert = false, laden = null, root = null, raf = 0, ladeTimer = 0;
   const BADGE_IMG = {};
+  const SVG = d => `<svg viewBox="0 0 16 16" width="1.1em" height="1.1em" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor">${d}</svg>`;
+  const ICO = {
+    pause: SVG('<rect x="3" y="2" width="4" height="12"/><rect x="9" y="2" width="4" height="12"/>'),
+    play: SVG('<rect x="4" y="2" width="2" height="12"/><rect x="6" y="3" width="2" height="10"/><rect x="8" y="4" width="2" height="8"/><rect x="10" y="5" width="2" height="6"/><rect x="12" y="7" width="1" height="2"/>'),
+    voll: SVG('<rect x="1" y="1" width="5" height="2"/><rect x="1" y="1" width="2" height="5"/><rect x="10" y="1" width="5" height="2"/><rect x="13" y="1" width="2" height="5"/><rect x="1" y="13" width="5" height="2"/><rect x="1" y="10" width="2" height="5"/><rect x="10" y="13" width="5" height="2"/><rect x="13" y="10" width="2" height="5"/>'),
+    aus: SVG('<rect x="7" y="1" width="2" height="7"/><rect x="4" y="3" width="2" height="2"/><rect x="10" y="3" width="2" height="2"/><rect x="2" y="5" width="2" height="5"/><rect x="12" y="5" width="2" height="5"/><rect x="3" y="10" width="2" height="2"/><rect x="11" y="10" width="2" height="2"/><rect x="5" y="12" width="6" height="2"/>')
+  };
 
   function badgeBild(id) {
     if (BADGE_IMG[id] !== undefined) return BADGE_IMG[id];
@@ -79,7 +86,7 @@ const LEITSTAND = (() => {
     root.innerHTML = `<header class="lhead"><div class="ltitel"><canvas class="emblem" data-emblem width="1" height="1" aria-hidden="true"></canvas><div><div class="lname">Leitstand</div><div class="lsub">Die Alte Fabrik</div></div></div>
       <h1 class="lseite" id="lSeite" aria-live="polite"></h1>
       <div class="lrechts"><span class="luhr" id="lUhr"></span><span class="lstand" id="lStand"></span>
-        <button class="lknopf" id="lPause" aria-label="Automatisch weiterblättern anhalten"></button><button class="lknopf" id="lVoll" aria-label="Vollbild">⛶</button><button class="lknopf" id="lAus" aria-label="Abmelden">⏻</button></div></header>
+        <button class="lknopf" id="lPause" aria-label="Automatisch weiterblättern anhalten"></button><button class="lknopf" id="lVoll" aria-label="Vollbild">${ICO.voll}</button><button class="lknopf" id="lAus" aria-label="Abmelden">${ICO.aus}</button></div></header>
       <div class="ltakt"><i id="lTakt"></i></div>
       <main class="lrahmen"><div class="lschirm" id="lSchirm"></div></main>
       <nav class="lnav"><button class="lpfeil" id="lZur" aria-label="Vorherige Tafel">◀</button><div class="lchips" id="lChips" role="tablist" aria-label="Tafel wählen"></div><button class="lpfeil" id="lVor" aria-label="Nächste Tafel">▶</button></nav>`;
@@ -99,7 +106,7 @@ const LEITSTAND = (() => {
     sch.addEventListener('pointercancel', () => { sx = null; });
     setInterval(uhr, 1000); uhr();
   }
-  function knopfPause() { const b = root.querySelector('#lPause'); b.textContent = pausiert ? '▶' : '❚❚'; b.setAttribute('aria-label', pausiert ? 'Automatisch weiterblättern starten' : 'Automatisch weiterblättern anhalten'); b.classList.toggle('an', pausiert); }
+  function knopfPause() { const b = root.querySelector('#lPause'); b.innerHTML = pausiert ? ICO.play : ICO.pause; b.setAttribute('aria-label', pausiert ? 'Automatisch weiterblättern starten' : 'Automatisch weiterblättern anhalten'); b.classList.toggle('an', pausiert); }
   function uhr() {
     const d = new Date(); root.querySelector('#lUhr').textContent = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     if (D && D.stand) { const s = new Date(D.stand); if (!isNaN(s)) root.querySelector('#lStand').textContent = 'XP-Rechner: ' + s.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ', ' + s.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
@@ -155,7 +162,7 @@ const LEITSTAND = (() => {
     const b = root.querySelector('#lAus');
     if (Date.now() - ausBereit < 3000) return true;
     ausBereit = Date.now(); b.classList.add('warn'); b.textContent = 'Abmelden?';
-    setTimeout(() => { b.classList.remove('warn'); b.textContent = '⏻'; }, 3000);
+    setTimeout(() => { b.classList.remove('warn'); b.innerHTML = ICO.aus; }, 3000);
     return false;
   }
   return { start };

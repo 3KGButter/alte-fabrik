@@ -481,7 +481,11 @@
     if (MOCK) h += `<h3>Vorschau-Werkzeuge</h3><div class="btns"><button class="btn" data-act="mock" data-id="mockSkip">12 Stunden vorspulen</button><button class="btn" data-act="mock" data-id="mockBau">Bauarbeiten beenden</button><button class="btn" data-act="mock" data-id="mockRich">+500 Zahnräder</button><button class="btn" data-act="mock" data-id="mockParts">+300 Teile</button><button class="btn" data-act="mock" data-id="mockStamps">+10 Stempel</button><button class="btn" data-act="mock" data-id="mockReset">Zurücksetzen</button></div>
       <p class="small">Fortschritt in Mebis:</p><div class="btns">${['frueh', 'mitte', 'weit', 'alles'].map(s => `<button class="btn x" data-act="stand" data-id="${s}">${s}</button>`).join('')}</div>`;
     h += `<p class="small">Die Alte Fabrik · Fortschritt aus deinem Mebis-Kurs. Die Fabrik zählt nicht für XP oder Noten.</p>`;
-    h += `<p class="small">Geräusche: Kenney (CC0), „Crickets“ von Wolfgang_ (CC0), „Wind“ von felix.blume (CC0), „Neutral ambient drone“ von xkeril (CC0), „Stream“ von mystiscool (CC BY 3.0, freesound.org), „Hoot Owl“ von Mike Koenig (CC BY 3.0, soundbible.com).</p>`;   /* Namensnennung für die Aufnahmen */
+    h += `<details class="lizenz"><summary>Lizenzen &amp; Quellen</summary><div class="small">
+      <p><b>Geräusche</b> (frei nutzbar): Kenney, kenney.nl (RPG Audio, Impact Sounds, Sci-Fi Sounds, CC0) · „Crickets Ambient Noise“ von Wolfgang_, OpenGameArt (CC0) · „Wind“ von felix.blume, freesound (CC0) · „Rocket launch“ von Sanderboah, freesound (CC0) · „Neutral ambient drone“ von xkeril, freesound (CC0) · „firework single“, Pixabay (Pixabay-Lizenz). Weitere Töne entstehen im Spiel selbst.</p>
+      <p><b>Mit Namensnennung</b> (CC BY 3.0): „Stream“ von mystiscool (freesound.org) · „Hoot Owl“ von Mike Koenig (soundbible.com).</p>
+      <p><b>Schrift</b>: Pixelify Sans von Stefie Justprince (SIL Open Font License 1.1).</p>
+      <p><b>Grafik</b>: Pixelgrafik für die Alte Fabrik gezeichnet. Pflanzen nach dem Projekt „Stilles Ufer“, Plaketten aus dem XP-Rechner des Kurses.</p></div></details>`;   /* Namensnennung für die Aufnahmen, aufklappbar; beim Verlassen des Menüs wieder zu (Panel wird neu gebaut) */
     return h;
   }
 
@@ -694,6 +698,7 @@
     } catch (e) { console.error(e); $('loginError').textContent = 'Keine Verbindung zum Server.'; return false; }
     finally { $('btnLogin').disabled = false; }
   }
+  $('inTag').addEventListener('keydown', e => { if ((e.key === 'Tab' && !e.shiftKey) || e.key === 'Enter') { e.preventDefault(); $('inPin').focus(); } });   /* immer weiter zur PIN, auch wenn eine Vorschlagsliste offen ist */
   $('loginForm').addEventListener('submit', e => { e.preventDefault(); doLogin($('inTag').value.trim(), $('inPin').value.trim(), $('inRemember').checked); });
   let bauHolt = false;   /* Bauzeit: Restzeit im Panel aktuell halten; ist ein Bau fertig, neuen Stand holen und melden */
   setInterval(() => { if (!D || !S().bau) return; const ids = Object.keys(S().bau); if ((sel && sel.kind === 'building' && ids.includes(sel.id)) || ids.includes(view)) renderPanel(); if (bauHolt || !ids.some(id => S().bau[id] <= now())) return;
@@ -704,7 +709,7 @@
     const th = store.get('altefabrik_theme'); if (th) document.documentElement.dataset.theme = th;
     [['quests', 'book'], ['factory', 'gears'], ['orders', 'clip'], ['catalog', 'cart'], ['badges', 'medal'], ['rank', 'rank'], ['menu', 'menu']].forEach(([a, k]) => { $('ico_' + a).src = IC['nav_' + k] || IC[k]; });
   /* Leistensymbole so grob wie die Spielgrafik: 21 Symbolpixel x Pixelgröße des Werkshofs */
-  (() => { const st = $('stage'); if (!st || !window.ResizeObserver) return; const fit = () => { const k = st.clientWidth / W; if (k > 0) document.documentElement.style.setProperty('--icpx', Math.round(Math.max(30, Math.min(56, 21 * k))) + 'px'); }; new ResizeObserver(fit).observe(st); fit(); })()   /* detaillierte Leistensymbole */;
+  (() => { const st = $('stage'); if (!st || !window.ResizeObserver) return; const fit = () => { const k = st.clientWidth / W; if (k > 0) document.documentElement.style.setProperty('--icpx', Math.round(Math.max(30, Math.min(56, 21 * k))) + 'px'); document.documentElement.style.setProperty('--respx', Math.round(Math.max(24, Math.min(40, 14 * k))) + 'px'); }; new ResizeObserver(fit).observe(st); fit(); })()   /* detaillierte Leistensymbole */;
     try { if (document.fonts) await Promise.race([document.fonts.load('16px "Pixelify Sans"'), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
     $('loading').classList.add('hidden');
     requestAnimationFrame(frame);

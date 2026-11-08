@@ -150,7 +150,7 @@ function doPost(e) {
     if (!who.ok) return json_(who);
     const action = req.action || 'login';
     if (who.user.lehrer) return json_(leitstand_(snapshot_()));   // Leitstand: nur lesen, kein Spielstand
-    if (action === 'login') { const ctx0 = kontext_(who.user); return json_(antwort_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx0), Date.now()), ctx0)); }
+    if (action === 'login') { const ctx0 = kontext_(who.user); return json_(antwort_(who.user, demoAusbau_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx0), Date.now())), ctx0)); }
     if (action === 'rangliste') return json_(rangliste_(who.user, snapshot_(), req.klasse));   // nur lesen
 
     // Schreibende Aktionen: nacheinander abarbeiten. Alles, was nur liest (XP-Rechner, Zugänge), passiert vorher,
@@ -160,7 +160,7 @@ function doPost(e) {
     if (!lock.tryLock(25000)) return json_({ ok: false, error: 'Gerade ist viel los. Bitte tippe gleich noch einmal.' });
     let out;
     try {
-      const state = bauFertig_(migriere_(ladeStand_(who.user.tag), ctx), Date.now());
+      const state = demoAusbau_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx), Date.now()));
       const vorher = JSON.stringify(state);   // für den Fehlerfall: unveränderter Stand ohne zweites Lesen
       const res = aktion_(action, req, state, ctx, Date.now());
       if (!res.ok) out = Object.assign(antwort_(who.user, JSON.parse(vorher), ctx), { ok: false, error: res.error });
@@ -352,9 +352,11 @@ function kontext_(user) {
   const snap = snapshot_();
   let bits, prof;
   if (user.demo) {
-    // Demo: MS1 + MS2 komplett, MS3 halb, Arbeitsprobe bestanden
-    bits = snap.quests.map((q, i) => (q.ms === 'MS1' || q.ms === 'MS2' || q.ms === 'MS5' || (q.ms === 'MS3' && i % 2 === 0)) ? '1' : '0').join('');
-    prof = { xp: 3000, level: 8, stufe: 'Demo', klasse: 'Demo' };
+    // Demo: alle Quests erledigt (Level und Stufe aus der Leveltabelle des XP-Rechners)
+    bits = snap.quests.map(() => '1').join('');
+    const xp = snap.quests.reduce((a, q) => a + (Number(q.xp) || 0), 0);
+    let lv = { level: '16', stufe: 'Demo' }; (snap.levels || []).forEach(e => { if (xp >= e.ab) lv = e; });
+    prof = { xp: xp, level: parseInt(lv.level, 10) || 0, stufe: lv.stufe || 'Demo', klasse: 'Demo' };
   } else {
     bits = snap.done[user.tag] || '';
     prof = snap.profile[user.tag] || { xp: 0, level: 0, stufe: '', klasse: user.klasse };
@@ -431,6 +433,15 @@ function leitstand_(snap) {
     klassen: klassen, top: top, gesamtXp: gesamt, schueler: tags.length, quests: quests,
     levels: snap.levels || [], badges: REGELN.badges.map(b => ({ id: b.id, name: b.name, color: b.color, anzahl: zaehl[b.id] })),
     stand: snap.stand, at: snap.at } };
+}
+
+// Demo-Zugang der Lehrkraft: alle Gebäude sind repariert (Maschinen, Lager und Deko bleiben zum Ausprobieren)
+function demoAusbau_(user, state) {
+  if (!user.demo || !state) return state;
+  state.b = state.b || {};
+  Object.keys(REGELN.buildings).forEach(id => { if (!state.b[id]) state.b[id] = Date.now(); });
+  delete state.bau;
+  return state;
 }
 
 // ===================== SPIELSTÄNDE =====================
