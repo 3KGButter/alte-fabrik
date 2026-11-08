@@ -115,8 +115,8 @@ const LEITRAUM = (() => {
   // ---------- Förderband: ein Werkstück pro Tafel ----------
   function band(dt) {
     const b = lay.band, y = b.gurt, x0 = 22, x1 = W - 40, k = takt();
-    if (k.seit !== seit) {   // neue Tafel: das alte Teil (falls noch unterwegs) rutscht schnell ans Ende und fällt in die Kiste
-      if (teil && teil.x < x1 - 1) DROPS.push({ id: teil.id, x: teil.x, schnell: true, t: 0 }); else if (teil) DROPS.push({ id: teil.id, x: x1, t: 0 });
+    if (k.seit !== seit) {   // neue Tafel: am Ende angekommen -> kippt über die Rolle in die Kiste; von Hand umgeschaltet -> fällt vom Band auf den Boden und verschwindet
+      if (teil && teil.x < x1 - 1) DROPS.push({ id: teil.id, x: teil.x, boden: true, t: 0 }); else if (teil) DROPS.push({ id: teil.id, x: x1, t: 0 });
       seit = k.seit; teil = { id: TEILE[Math.floor(Math.random() * TEILE.length)], x: x0 };
     }
     const q = k.pausiert ? (teil.q || 0) : Math.min(1, (performance.now() - k.t0) / k.dauer); teil.q = q; teil.x = x0 + (x1 - x0) * q;
@@ -134,19 +134,26 @@ const LEITRAUM = (() => {
     // Antrieb links mit blinkender Lampe
     R(x0 - 18, y - 6, 10, 13, '#3e5a52'); R(x0 - 18, y - 6, 10, 1, '#5e8a7c'); R(x0 - 16, y - 3, 6, 3, '#24332f'); R(x0 - 15, y + 2, 4, 1, '#24332f');
     R(x0 - 13, y - 9, 2, 3, '#1c1c22'); R(x0 - 13, y - 10, 2, 1, k.pausiert ? '#e0603a' : (zeit % 1.2 < .6 ? '#7ef08a' : '#2a6a34'));
-    // Kiste rechts: Holzlatten, Teile schauen heraus
-    const kx = x1 + 9, ky = y - 4 - (kisteHuepf > 0 ? 1 : 0); kisteHuepf = Math.max(0, kisteHuepf - dt);
-    for (let i = 0; i < Math.min(3, inKiste); i++) { const c = ic(TEILE[(i * 2 + inKiste) % 6]); if (c) g.drawImage(c, kx + 1 + i * 5, ky - 6); }
-    R(kx, ky, 24, b.boden - ky, '#7a5430'); for (let yy = ky + 3; yy < b.boden - 1; yy += 4) R(kx + 1, yy, 22, 1, '#5a3c20');
-    R(kx, ky, 24, 1, '#a07040'); R(kx, ky, 1, b.boden - ky, '#4a301a'); R(kx + 23, ky, 1, b.boden - ky, '#4a301a'); R(kx + 4, ky + 1, 1, b.boden - ky - 1, '#5a3c20'); R(kx + 19, ky + 1, 1, b.boden - ky - 1, '#5a3c20');
-    // das Werkstück
-    const c = ic(teil.id); if (c) g.drawImage(c, Math.round(teil.x - 7), y - 13);
+    // Kiste unter dem Bandende: Rückwand, Teile darin, fallendes Teil, dann die Vorderwand davor
+    const kx = x1 + 1, kw = 27, kt = y + 3 + (kisteHuepf > 0 ? 1 : 0), kh = b.boden - kt; kisteHuepf = Math.max(0, kisteHuepf - dt);
+    R(kx + 1, kt - 2, kw - 2, 2, '#3a2614');   // Innenseite / Rückwand
+    for (let i = 0; i < Math.min(3, inKiste); i++) { const c = ic(TEILE[(i * 2 + inKiste) % 6]); if (c) g.drawImage(c, kx + 1 + i * 6, kt - 5 + (i % 2)); }
+    const c = ic(teil.id); if (c) g.drawImage(c, Math.round(teil.x - 7), y - 13);   // das Werkstück auf dem Band
     for (let i = DROPS.length - 1; i >= 0; i--) {
-      const d = DROPS[i]; d.t += dt; const c2 = ic(d.id);
-      if (d.schnell && d.x < x1) { d.x = Math.min(x1, d.x + (x1 - x0) * dt * 2.5); if (c2) g.drawImage(c2, Math.round(d.x - 7), y - 13); if (d.x >= x1) { d.schnell = false; d.t = 0; } continue; }
-      const q2 = Math.min(1, d.t / .45), x = x1 + q2 * 14, yy = y - 13 + q2 * q2 * 10;
-      if (c2 && q2 < 1) g.drawImage(c2, Math.round(x - 7), Math.round(yy));
-      if (q2 >= 1) { DROPS.splice(i, 1); kisteHuepf = .15; inKiste++; }
+      const d = DROPS[i]; d.t += dt; const c2 = ic(d.id); if (!c2) { DROPS.splice(i, 1); continue; }
+      if (d.boden) continue;   // fällt vor dem Band herunter (wird unten gezeichnet)
+      const xx = x1 + 20 * d.t, yy = y - 13 + 80 * d.t * d.t;   // kippt über die Rolle und fällt in die Kiste
+      g.save(); g.beginPath(); g.rect(0, 0, W, b.boden); g.clip(); g.drawImage(c2, Math.round(xx - 7), Math.round(yy)); g.restore();
+      if (yy > kt + 1) { DROPS.splice(i, 1); kisteHuepf = .12; inKiste++; }
+    }
+    R(kx, kt, kw, kh, '#7a5430'); for (let yy = kt + 3; yy < b.boden - 1; yy += 3) R(kx + 1, yy, kw - 2, 1, '#5a3c20');
+    R(kx, kt, kw, 1, '#a07040'); R(kx, kt, 1, kh, '#4a301a'); R(kx + kw - 1, kt, 1, kh, '#4a301a'); R(kx + 4, kt + 1, 1, kh - 1, '#5a3c20'); R(kx + kw - 5, kt + 1, 1, kh - 1, '#5a3c20');
+    // von Hand umgeschaltet: das alte Teil fällt vom Band auf den Boden, bleibt kurz liegen und verblasst
+    for (let i = DROPS.length - 1; i >= 0; i--) {
+      const d = DROPS[i]; if (!d.boden) continue; const c2 = ic(d.id);
+      const ziel = b.boden - 13, yy = Math.min(ziel, y - 13 + 90 * d.t * d.t), a = d.t < 1 ? 1 : Math.max(0, 1 - (d.t - 1) / .5);
+      g.globalAlpha = a; g.drawImage(c2, Math.round(d.x - 7), Math.round(yy)); g.globalAlpha = 1;
+      if (a <= 0) DROPS.splice(i, 1);
     }
   }
   // ---------- Wer ab und zu vorbeikommt ----------
@@ -175,6 +182,7 @@ const LEITRAUM = (() => {
   }
   // für Tests: jemanden sofort vorbeischicken bzw. etwas an den Himmel setzen
   function test(k) { const f = lay && lay.fenster[0];
+    if (k === 'kiste') DROPS.push({ id: 'gears', x: W - 40, t: 0 });
     if (k === 'mecha') LEUTE.push({ mecha: true, x: W * .3, dir: 1, dist: 0, v: 7 });
     if (k === 'kat') LEUTE.push({ kat: true, c: { x: W * .55, tx: W + 30, mode: 'walk', t: 0, dir: 1, dist: 0 } });
     if (k === 'leute') LEUTE.push({ vi: 1, x: W * .7, dir: -1, dist: 0, v: 13, carry: true });

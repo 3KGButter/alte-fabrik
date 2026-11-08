@@ -458,7 +458,7 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 
 /* Glanz auf dem Messingrahmen: feste Lichtkante und ab und zu ein wandernder Lichtstreif */
 .lrahmen { overflow: hidden; box-shadow: inset 2px 2px 0 #fff5c8aa, inset -2px -2px 0 #6a4a14, 0 6px 0 #0008; }
-.lglanz { position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(105deg, transparent 42%, #fff8dd 49%, #ffffff 50%, #fff8dd 51%, transparent 58%) no-repeat; background-size: 250% 100%; background-position: 160% 0; animation: lglanz 9s ease-in-out infinite; opacity: .85; }
-@keyframes lglanz { 0%, 70% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+.lglanz { position: absolute; inset: 0; z-index: 0; pointer-events: none; background: linear-gradient(105deg, transparent 42%, #fff8dd 49%, #ffffff 50%, #fff8dd 51%, transparent 58%) no-repeat; background-size: 250% 100%; background-position: 160% 0; animation: lglanz 60s ease-in-out infinite; opacity: .85; }
+@keyframes lglanz { 0%, 95% { background-position: 160% 0; } 100% { background-position: -60% 0; } }   /* etwa einmal pro Minute, 3 s lang */
 @media (prefers-reduced-motion: reduce) { .lglanz { animation: none; display: none; } }
 .lschirm { z-index: 1; }
