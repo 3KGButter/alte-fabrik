@@ -99,6 +99,7 @@ input { font: inherit; font-size: 1.1rem; padding: 9px 10px; border-radius: 3px;
 input:focus { outline: 2px solid var(--accent); }
 .error { color: var(--bad); min-height: 1em; }
 #busy { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.08); }
+#stage > #busy { position: absolute; z-index: 6; }
 .spinner { width: 34px; height: 34px; border: 4px solid var(--line); border-top-color: var(--accent); animation: spin .8s steps(8) infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -331,8 +332,6 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .lknopf { display: inline-grid; place-items: center; min-width: 2.2em; height: 2.2em; padding: 0 .5em; border: 2px solid #3b4566; border-radius: 4px; background: var(--l-steel); color: #e7ebf5; font-size: 1em; }
 .lknopf.an { border-color: var(--l-amber); color: var(--l-amber); }
 .lknopf.warn { border-color: #f08a6a; color: #ffd0b0; background: #4a2028; }
-.ltakt { height: 4px; background: #232a3d; border-radius: 2px; overflow: hidden; }
-.ltakt i { display: block; height: 100%; width: 0; background: var(--l-brass2); }
 /* Messingrahmen mit Nieten, darin der grüne Anzeigeschirm */
 .lrahmen { flex: 1; min-height: 0; padding: clamp(8px, 1.4vh, 16px); background: linear-gradient(135deg, var(--l-brass3), var(--l-brass2) 30%, var(--l-brass1) 100%); border: 3px solid #3b2415; border-radius: 6px; box-shadow: inset 0 0 0 3px #e9c46a66, 0 6px 0 #0008; position: relative; }
 .lrahmen::before, .lrahmen::after { content: ''; position: absolute; top: 4px; width: 8px; height: 8px; background: #fff3c4; box-shadow: 0 0 0 2px #5a3a14; border-radius: 1px; }
@@ -362,10 +361,11 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .llv { flex: none; width: 3.6em; color: var(--l-amber); }
 .lstufe { flex: 0 1 12em; color: var(--l-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9em; }
 .lxp { flex: none; min-width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
-.ltop { width: min(100%, 50em); align-self: center; }
+.ltop { width: min(100%, 58em); align-self: center; }
 .ltop .lkl { min-width: 3.6em; text-align: center; }
 .ltop li { font-size: 1.4em; }
-.ltop .lstufe { flex: 1 1 10em; }
+.ltop .ltag { flex: 0 0 8.5em; }
+.ltop .lstufe { flex: 1 1 8em; }
 .lspalten { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(14px, 3vw, 48px); }
 .lkl li { font-size: 1.12em; padding: .06em .4em; }
 .lspalten .lliste { display: grid; grid-template-rows: repeat(var(--rows, 15), minmax(0, 1fr)); grid-template-columns: minmax(0, 1fr); align-content: stretch; justify-content: stretch; }
@@ -425,3 +425,32 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .lizenz summary::-webkit-details-marker { display: none; }
 .lizenz summary::before { content: '▸ '; } .lizenz[open] summary::before { content: '▾ '; }
 .lizenz > div { padding: 0 10px 8px; } .lizenz p { margin: 6px 0; }
+
+/* Kontrollraum hinter den Tafeln (leitraum.js) */
+.leit { --lp: 3px; --lside: clamp(0px, 7.5vw, 150px); background: #211a26; }
+.lraum { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; z-index: 0; pointer-events: none; }
+.leit > :not(.lraum) { position: relative; z-index: 1; }
+.lrahmen { margin: 0 var(--lside); }
+.lband { flex: none; height: calc(var(--lp) * 24); margin: calc(var(--lp) * -3) calc(-1 * clamp(10px, 1.6vw, 28px)) 0; }
+.ltitel, .lrechts { background: #17121cd9; border: 2px solid #3a2e24; border-radius: 4px; padding: 4px 10px; justify-self: start; }
+.lrechts { justify-self: end; }
+.lnav { background: #17121cb0; border-radius: 6px; padding: 4px; }
+/* Überschrift als Fallblattanzeige */
+.lseite { display: flex; gap: .35em; justify-content: center; font-size: clamp(20px, 3.4vh, 46px); text-shadow: none; }
+.lwort { display: flex; gap: .08em; }
+.lfb { display: inline-grid; place-items: center; width: .82em; height: 1.25em; line-height: 1; color: #fff1d2; background: linear-gradient(#22202c 0 49%, #0e0d14 49% 51%, #1b1a24 51%); border: 2px solid #0b0a10; border-radius: 3px; box-shadow: 0 3px 0 #000a; }
+.lfb.klapp { animation: lklapp .12s ease-out; }
+@keyframes lklapp { from { transform: scaleY(.15); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lfb.klapp { animation: none; } }
+@media (max-width: 900px), (orientation: portrait) { .leit { --lside: 0px; } .lfb { width: .7em; } }
+
+/* Entwurf: Levelstufen als Treppe */
+.ltreppe { flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); align-items: end; gap: 0 3px; padding-top: 1em; }
+.lstufeT { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+.lsinfo { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .1em; padding-bottom: var(--kh, 64px); font-size: .82em; line-height: 1.1; }
+.lsinfo b { display: grid; place-items: center; min-width: 1.9em; height: 1.6em; background: #e0b23c; color: #3b2415; border-radius: 2px; font-size: 1.15em; }
+.lsname { color: #fff1d2; hyphens: auto; -webkit-hyphens: auto; overflow-wrap: break-word; max-width: 100%; } .lsname em { color: var(--l-dim); font-style: normal; }
+.lsxp { color: var(--l-amber); } .lsanz { color: #0e2622; background: var(--l-dim); border-radius: 2px; padding: 0 .3em; margin-top: .15em; }
+.lsblock { height: calc(5% + var(--i) * 3.6%); min-height: 10px; background: repeating-linear-gradient(0deg, transparent 0 10px, #0003 10px 12px), linear-gradient(90deg, #8a8a98, #6a6a78); border: 2px solid #1a1a22; border-top: 5px solid #c99a2e; border-bottom: 0; }
+.lstufeT:nth-child(n+14) .lsblock { border-top-color: #f0c766; background: repeating-linear-gradient(0deg, transparent 0 10px, #0003 10px 12px), linear-gradient(90deg, #b8862f, #8a6420); }
+.lkletter { position: absolute; image-rendering: pixelated; pointer-events: none; }

@@ -78,7 +78,7 @@
   const tq = []; let tBusy = false, tTimer = null;
   function toast(m, bad, now) { if (now) { tq.length = 0; clearTimeout(tTimer); tBusy = false; } tq.push([m, bad]); if (!tBusy) nextToast(); }
   function nextToast() { const m = tq.shift(); if (!m) { tBusy = false; return; } tBusy = true; const el = $('toast'); el.textContent = m[0]; el.className = 'toast show' + (m[1] ? ' bad' : ''); tTimer = setTimeout(() => { el.className = 'toast'; tTimer = setTimeout(nextToast, 350); }, Math.max(m[1] ? 3800 : 2600, String(m[0]).length * 55)); }
-  function busy(on) { $('busy').classList.toggle('hidden', !on); }
+  function busy(on) { const b = $('busy'), host = $('app').classList.contains('hidden') ? document.body : $('stage'); if (b.parentNode !== host) host.appendChild(b); b.classList.toggle('hidden', !on); }   /* Ladesymbol mitten über dem Spielfeld, nicht mitten im Fenster */
 
   // ---------- Server ----------
   async function api(body) {

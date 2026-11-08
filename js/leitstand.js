@@ -67,6 +67,12 @@ const LEITSTAND = (() => {
       return `<div class="lklkopf" style="--kf:${klFarbe(k.klasse)}"><span>${fmt(k.anzahl)} Schüler</span><span>${fmt(k.summe)} XP zusammen</span><span>Ø ${fmt(k.schnitt)} XP</span><span class="lklhint">Balken: Weg bis zum nächsten Level</span></div>
         <div class="lspalten" style="--rows:${Math.max(8, cols[0].length)}">${cols.map(c => `<ol class="lliste lkl" start="${c[0] ? c[0].p : 1}">${c.map(zeile).join('')}</ol>`).join('')}</div>`;
     }
+    if (pg.id === 'level' && window.LEIT_TREPPE && D.levels.length) {   /* Entwurf: Levelstufen als Treppe */
+      const anz = {}; D.klassen.forEach(k => k.liste.forEach(e => { const l = String(e.level || 0); anz[l] = (anz[l] || 0) + 1; }));
+      const L = D.levels, n = L.length;
+      return `<div class="ltreppe" style="--n:${n}">${L.map((e, i) => { const key = e.level === '†' ? '0' : String(e.level), a = anz[key] || 0;
+        return `<div class="lstufeT" style="--i:${i}"><div class="lsinfo"><b>${esc(e.level)}</b><span class="lsname">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lsxp">ab ${fmt(e.ab)} XP</span>${a ? `<span class="lsanz">${a} ${a === 1 ? 'Schüler' : 'Schüler'}</span>` : ''}</div><div class="lsblock"></div></div>`; }).join('')}<canvas class="lkletter" width="20" height="32"></canvas></div>`;
+    }
     if (pg.id === 'level') {
       if (!D.levels.length) return '<p class="lleer">Die Leveltabelle wird beim nächsten Abruf aus dem XP-Rechner geladen.</p>';
       const anz = {}; D.klassen.forEach(k => k.liste.forEach(e => { const l = String(e.level || 0); anz[l] = (anz[l] || 0) + 1; }));
@@ -87,8 +93,8 @@ const LEITSTAND = (() => {
       <h1 class="lseite" id="lSeite" aria-live="polite"></h1>
       <div class="lrechts"><span class="luhr" id="lUhr"></span><span class="lstand" id="lStand"></span>
         <button class="lknopf" id="lPause" aria-label="Automatisch weiterblättern anhalten"></button><button class="lknopf" id="lVoll" aria-label="Vollbild">${ICO.voll}</button><button class="lknopf" id="lAus" aria-label="Abmelden">${ICO.aus}</button></div></header>
-      <div class="ltakt"><i id="lTakt"></i></div>
       <main class="lrahmen"><div class="lschirm" id="lSchirm"></div></main>
+      <div class="lband" aria-hidden="true"></div>
       <nav class="lnav"><button class="lpfeil" id="lZur" aria-label="Vorherige Tafel">◀</button><div class="lchips" id="lChips" role="tablist" aria-label="Tafel wählen"></div><button class="lpfeil" id="lVor" aria-label="Nächste Tafel">▶</button></nav>`;
     document.body.appendChild(root);
     try { const E = ART.EMBLEM, c = root.querySelector('[data-emblem]'); if (E && c) { c.width = E.c.width; c.height = E.c.height; c.getContext('2d').drawImage(E.c, 0, 0); } } catch (e) {}
@@ -105,6 +111,7 @@ const LEITSTAND = (() => {
     sch.addEventListener('pointerup', e => { if (sx === null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.3) gehe(idx + (dx < 0 ? 1 : -1), true); });
     sch.addEventListener('pointercancel', () => { sx = null; });
     setInterval(uhr, 1000); uhr();
+    try { LEITRAUM.start(root, () => ({ t0, dauer, pausiert, seit: taktNr })); } catch (e) { console.warn('Kontrollraum nicht gezeichnet', e); }
   }
   function knopfPause() { const b = root.querySelector('#lPause'); b.innerHTML = pausiert ? ICO.play : ICO.pause; b.setAttribute('aria-label', pausiert ? 'Automatisch weiterblättern starten' : 'Automatisch weiterblättern anhalten'); b.classList.toggle('an', pausiert); }
   function uhr() {
@@ -116,10 +123,48 @@ const LEITSTAND = (() => {
   }
   function zeigen(richtung) {
     const pg = pages[idx], sch = root.querySelector('#lSchirm');
-    root.querySelector('#lSeite').textContent = pg.titel;
+    fallblatt(root.querySelector('#lSeite'), pg.titel);
     sch.innerHTML = `<section class="ltafel t-${pg.id.replace(/[^a-z]/g, '')}${richtung ? (richtung > 0 ? ' von-rechts' : ' von-links') : ''}">${seiteHtml(pg)}</section>`;
     chips();
     if (pg.id === 'zaehler') hochzaehlen(sch);
+    if (pg.id === 'level') kletterer(sch);
+  }
+  // Überschrift wie eine Fallblattanzeige: jedes Blatt klappt kurz durch und bleibt dann stehen
+  const ZEICHEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789';
+  let fallTimer = 0;
+  function fallblatt(el, text) {
+    el.setAttribute('aria-label', text); clearInterval(fallTimer);
+    const ruhig = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.innerHTML = text.split(' ').map(w => `<span class="lwort">${w.split('').map(c => `<span class="lfb" aria-hidden="true">${esc(ruhig ? c : ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)])}</span>`).join('')}</span>`).join('');
+    if (ruhig) return;
+    const bl = Array.from(el.querySelectorAll('.lfb')), ziel = text.replace(/ /g, '').split(''), start = performance.now();
+    fallTimer = setInterval(() => {
+      const t = performance.now() - start; let fertig = true;
+      bl.forEach((b, i) => { const ende = 180 + i * 45; if (t < ende) { fertig = false; const z = ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)]; if (b.textContent !== z) { b.textContent = z; b.classList.remove('klapp'); void b.offsetWidth; b.classList.add('klapp'); } } else if (b.textContent !== ziel[i]) { b.textContent = ziel[i]; b.classList.remove('klapp'); void b.offsetWidth; b.classList.add('klapp'); } });
+      if (fertig) clearInterval(fallTimer);
+    }, 70);
+  }
+  // Kleine Figur steigt die Treppe hinauf, winkt oben und beginnt von vorn
+  let kletterRaf = 0;
+  function kletterer(sch) {
+    const cv = sch.querySelector('.lkletter'), tr = sch.querySelector('.ltreppe'); cancelAnimationFrame(kletterRaf); if (!cv || !tr) return;
+    const blocks = Array.from(tr.querySelectorAll('.lsblock')), g = cv.getContext('2d'), W = WORKERS.set('small', 2), t0 = performance.now();
+    const step = now => {
+      if (!cv.isConnected) return;
+      const t = Math.max(0, (now - t0) / 1000), proStufe = 1.1, n = blocks.length, zyk = n * proStufe + 3, u = t % zyk, i = Math.min(n - 1, Math.floor(u / proStufe)), q = Math.min(1, (u - i * proStufe) / proStufe);
+      const tb = tr.getBoundingClientRect(), b0 = blocks[i].getBoundingClientRect(), b1 = blocks[Math.min(n - 1, i + 1)].getBoundingClientRect();
+      const oben = u >= n * proStufe - .2, k = tb.width / 600 * 1.0, sc = Math.max(2, Math.round(tb.height / 240)); tr.style.setProperty('--kh', (30 * sc + 6) + 'px');
+      cv.style.width = 20 * sc + 'px'; cv.style.height = 32 * sc + 'px';
+      const gehQ = Math.min(1, q / .7), hop = q > .7 ? Math.sin((q - .7) / .3 * Math.PI) * 6 : 0;
+      const x = oben ? b0.left + b0.width / 2 : b0.left + b0.width * .3 + (q > .7 ? (b1.left - b0.left) * (q - .7) / .3 : b0.width * .4 * gehQ);
+      const y = oben ? b0.top : (q > .7 ? b0.top + (b1.top - b0.top) * (q - .7) / .3 : b0.top) - hop * sc;
+      cv.style.left = (x - tb.left - 10 * sc) + 'px'; cv.style.top = (y - tb.top - 31 * sc) + 'px';
+      g.clearRect(0, 0, 20, 32);
+      const fr = oben ? (W.wave || W.idle)[Math.floor(t * 3) % 2] : W.walk[Math.floor(t * 8) % 8];
+      WORKERS.put(g, fr, 10, 30, false);
+      kletterRaf = requestAnimationFrame(step);
+    };
+    kletterRaf = requestAnimationFrame(step);
   }
   function hochzaehlen(sch) {   // Zählwerk rollt einmal hoch
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -135,14 +180,10 @@ const LEITSTAND = (() => {
     zeigen(hand ? (i < alt && !(alt === n - 1 && idx === 0) ? -1 : 1) : 1);
     starteTakt(hand ? PAUSE_NACH_HAND_MS : AUTO_MS);
   }
+  let taktNr = 0;
   function starteTakt(ms) {
-    clearTimeout(timer); dauer = ms; t0 = performance.now();
+    clearTimeout(timer); dauer = ms; t0 = performance.now(); taktNr++;
     if (!pausiert) timer = setTimeout(() => gehe(idx + 1, false), ms);
-  }
-  function taktZeichnen() {
-    const el = root && root.querySelector('#lTakt');
-    if (el) el.style.width = pausiert ? '0%' : Math.min(100, (performance.now() - t0) / dauer * 100).toFixed(2) + '%';
-    requestAnimationFrame(taktZeichnen);
   }
   async function neuLaden() {
     try { const r = await laden(); if (r && r.ok && r.leitstand) { const id = pages[idx] && pages[idx].id; D = r.leitstand; pages = seitenBauen(); const j = pages.findIndex(p => p.id === id); idx = j >= 0 ? j : 0; zeigen(0); uhr(); } } catch (e) { console.warn('Leitstand: neu laden fehlgeschlagen', e); }
@@ -153,7 +194,7 @@ const LEITSTAND = (() => {
     document.documentElement.classList.add('leitmodus');
     if (!root) aufbauen();
     root.querySelector('#lAus').onclick = () => { if (confirmAus()) abmelden(); };
-    knopfPause(); zeigen(0); uhr(); starteTakt(AUTO_MS); taktZeichnen();
+    knopfPause(); zeigen(0); uhr(); starteTakt(AUTO_MS);
     clearInterval(ladeTimer); ladeTimer = setInterval(() => { if (!document.hidden) neuLaden(); }, NEU_LADEN_MS);
   }
   // Abmelden mit zweitem Tippen bestätigen (kein Browser-Dialog)
