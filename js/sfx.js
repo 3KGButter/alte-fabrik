@@ -33,13 +33,13 @@ const SFX = (() => {
       const pr = ac.decodeAudioData(arr.buffer, b => { BUF[k] = b; }, () => {}); if (pr && pr.catch) pr.catch(() => {}); } catch (e) {} }); }
   function sample(dst, t, name, o) {   // eine Aufnahme abspielen; o: rate, lp (Tiefpass), vol
     const b = BUF[name]; if (!b) return false; o = o || {}; const s = ac.createBufferSource(); s.buffer = b; s.playbackRate.value = (o.rate || 1) * (1 + (Math.random() - .5) * (o.vary === undefined ? .08 : o.vary));
-    let n = s; if (o.lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; s.connect(f); n = f; } const g = ac.createGain(); g.gain.value = o.vol === undefined ? 1 : o.vol; n.connect(g); g.connect(dst); s.start(t); return true; }
+    let n = s; if (o.lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; s.connect(f); n = f; } const g = ac.createGain(); g.gain.value = o.vol === undefined ? 1 : o.vol; n.connect(g); g.connect(dst); s.start(t, o.off || 0); return true; }   /* off: Vorlauf der Aufnahme überspringen (Sekunden) */
   function loopSample(name, dst, vol, lp, hp) { const b = BUF[name]; if (!b) return null; const s = ac.createBufferSource(); s.buffer = b; s.loop = true; let n = s;
     if (hp) { const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp; n.connect(f); n = f; } if (lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; n.connect(f); n = f; }
     const g = ac.createGain(); g.gain.value = vol; n.connect(g); g.connect(dst); s.start(ac.currentTime, Math.random() * Math.max(0, b.duration - 2)); return s; }
   // Ereignisse, die eine Aufnahme statt des erzeugten Tons verwenden (Lautstärken bewusst leise, „cozy“)
   const SAMPLED = {
-    coin: ['muenze_teile_erhalten', .35], page: ['blaettern', .3, { lp: 2400 }], stamp: ['stempel', .3], place: ['ablegen', .5], unplace: ['ablegen', .4, { rate: 1.2 }], crate: ['holz_bauen', .5, { rate: 1.15, lp: 2600 }], gateCreak: ['knarren_kiste', .45, { rate: .55, lp: 2200, vary: .02 }],   /* Werkstor: langsam, lang gezogen */   /* Kiste öffnen: hölzernes Klonk */
+    coin: ['muenze_teile_erhalten', .35], page: ['blaettern', .3, { lp: 2400, off: .42 }]   /* v133: Die Aufnahme beginnt mit 0,2 s Stille und leisem Rascheln, das Umschlagen kommt erst nach 0,5 s. Start kurz davor, damit es sofort zum Tippen passt */, stamp: ['stempel', .3], place: ['ablegen', .5], unplace: ['ablegen', .4, { rate: 1.2 }], crate: ['holz_bauen', .5, { rate: 1.15, lp: 2600 }], gateCreak: ['knarren_kiste', .45, { rate: .55, lp: 2200, vary: .02 }],   /* Werkstor: langsam, lang gezogen */   /* Kiste öffnen: hölzernes Klonk */
     press: ['presse_schlag', .3, { lp: 2600, rate: .9 }], clank: ['metall_klong', .25, { lp: 3000 }], hammer: [['hammer_holz', 'hammer_holz2'], .32], build: ['holz_bauen', .45], thud: ['dumpfer_aufprall', .4, { lp: 1800 }],
     step: ['schritt_beton', .22, { lp: 2400 }], creak: ['knarren_kiste', .4], wood: ['hammer_holz', .35], assemble: ['metall_klick_montage', .3, { lp: 3500 }], latch: ['metall_einrasten_montage', .28, { lp: 3500 }], blade: ['klinge_ausfahren', .45, { vary: .03 }], mstep: ['mecha_schritt', .55, { lp: 2400 }, true], door: ['tuer_auf', .32, { lp: 3500 }]
   };
@@ -149,6 +149,8 @@ const SFX = (() => {
     jetStart: (d, t) => { hiss(d, t, .9, .08, { f: 300, to: 1400, a: .25 }); tone(d, t, 90, .7, .05, { type: 'triangle', to: 160, lp: 400, a: .2 }); },
     chain: (d, t) => { for (let i = 0; i < 14; i++) tink(d, t + i * .14 + R(0, .04), .018, R(1300, 1700)); },   // Kette rasselt leise nach oben
     blade: (d, t) => { tone(d, t, 1568, .5, .035, { type: 'triangle', to: 2350, slide: .25, a: .02 }); tone(d, t + .05, 3136, .35, .01); },   // Klinge: helles „Ssching“
+    drip: (d, t) => { const f = R(1100, 2600); tone(d, t, f, .035, .016, { to: f * .55, a: .002, lp: 3600 }); if (Math.random() < .3) tone(d, t + .03, f * .7, .05, .006, { to: f * .4, lp: 2400 }); },   /* ein einzelner Regentropfen: kurzes, weiches „Tip“, jedes Mal etwas anders */
+    thunder: (d, t) => { hiss(d, t, .25, .22, { f: 1400, to: 300, a: .01 }); hiss(d, t + .05, 2.6, .5, { f: 240, to: 70, a: .08 }); hiss(d, t + .9, 2.4, .3, { f: 160, to: 60, a: .3 }); tone(d, t, 58, 1.8, .22, { to: 34, lp: 120, a: .05 }); },   /* Donner: kurzer Schlag, dann langes, dunkles Grollen */
     cheer: (d, t) => { [N[0], N[2], N[3], N[5], N[7]].forEach((f, i) => tone(d, t + i * .12, f, .6, .05, { type: 'triangle', a: .02, lp: 2800 })); }
   };
   const last = {};
@@ -174,7 +176,7 @@ const SFX = (() => {
   const HUMS = {
     crickets: o => { const mg = gain(.5), l = osc('sine', .045), lg = gain(.42); ch(l, lg, mg.gain); mg.connect(o); const r0 = loopSample('grillen_schleife', mg, 1, 4200); if (r0) return [r0, l];   /* Aufnahme, langsam an- und abschwellend */ const ns = []; [[4200, 22, .8], [3900, 26, 1.1]].forEach(([f, r, s2]) => { const s1 = osc('sine', f); const a = am(s1, r, 1, 'sine'); const b = am(a.out, s2, .9); ch(b.out, gain(.025), o); ns.push(s1, ...a.nodes, ...b.nodes); }); return ns; },
     water: o => { const r = loopSample('wasser_see_schleife', o, .5, 650); if (r) return [r]; const s1 = src(), a = am(ch(s1, filt('lowpass', 350)), .2, .5); ch(a.out, gain(.35), o); return [s1, ...a.nodes]; },   /* Plätschern des Sees (Aufnahme) */
-    wind: o => { const r = loopSample('wind_schleife', o, .5, 1600, 120); return r ? [r] : []; },   /* leiser Wind, vor allem nachts */
+    rain: o => { const s1 = src(), s2 = src(); ch(s1, filt('highpass', 2200), filt('lowpass', 5000), gain(.022), o); ch(s2, filt('bandpass', 480, .5), gain(.03), o); return [s1, s2]; },   /* v135: nur noch ein sehr leiser Grund, den Regen machen die einzelnen Tropfen (drip) */   /* Regen (v134): helles Rauschen der Tropfen und ein weicher, dunkler Teppich darunter. Die Wind-Aufnahme ist entfernt: sie bestand aus 3 s tiefem Grollen und 21 s Stille */
     plane: o => { const s1 = src(); ch(s1, filt('lowpass', 220), gain(.35), o); return [s1]; },
     chug: o => { const s1 = src(), a = am(ch(s1, filt('lowpass', 180)), 2.6, .8); ch(a.out, gain(.5), o); return [s1, ...a.nodes]; },
     engine: o => { const a1 = osc('triangle', 55), f = filt('lowpass', 220); a1.connect(f); const a = am(f, 9, .3); ch(a.out, gain(.2), o); return [a1, ...a.nodes]; },

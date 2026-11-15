@@ -27,7 +27,6 @@ Alles ist frei nutzbar. Nur „Stream“ (CC BY) verlangt eine Namensnennung; si
 | eule_huhu.mp3 | Eule: „Huhu“ (selten nachts und beim Antippen) | „Hoot Owl“, Mike Koenig (soundbible.com), zwei Rufe mit kürzerer Pause | CC BY 3.0 (Namensnennung im Spielmenü) |
 | grillen_schleife.mp3 | Nachts: leiser, sanft schwellender Grillenteppich | „Crickets Ambient Noise – loopable“, Wolfgang_ (OpenGameArt) | CC0 |
 | klinge_ausfahren.mp3 | Mecha: Klinge fährt metallisch aus und rastet ein | Kenney, RPG Audio (draw_knife) + Impact Sounds (impact_metal_heavy), tiefer gestimmt | CC0 |
-| wind_schleife.mp3 | Nachts: leiser Wind | „Wind“, felix.blume (freesound 139337) | CC0 |
 | wasser_see_schleife.mp3 | Leises, tiefes Flussrauschen (stark gefiltert) | „Stream“, mystiscool (freesound 7138) | CC BY 3.0 |
 | maschinenraum_brummen_schleife.mp3 | Kraftwerk: weiches Raumbrummen | „Neutral ambient drone“, xkeril (freesound) | CC0 |
 

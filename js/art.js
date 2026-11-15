@@ -55,6 +55,67 @@ const ART = (() => {
   const onRestore = fn => RESTORE.push(fn);
   /* Zwischenbilder für Ruhendes (Himmel, Berge, Boden): nur neu zeichnen, wenn sich die Farben ändern. Schlüssel aus gerundeten Farbwerten. */
   const LCACHE = {};
+  // ---------- Wetter (v134) ----------
+  // Fest aus der Uhr berechnet, also für alle gleich. Ein Spieltag dauert DAY_MINUTES (10 Minuten).
+  // An jedem zweiten Spieltag regnet es mit 40 % Wahrscheinlichkeit, 3 bis 6 Minuten lang; jeder dritte Regen ist ein Gewitter.
+  // Ergebnis: { rain: 0..1 (Stärke, blendet weich ein und aus), storm: 0..1 }.
+  // Zum Testen: window.FORCE_WX = 'regen' | 'gewitter' | 'klar' oder die Adresse mit ?wetter=regen aufrufen.
+  const wxHash = n => { let x = Math.imul((n | 0) ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35); x ^= x >>> 16; return (x >>> 0) / 4294967296; };
+  const WX_RULE = { everyDays: 2, chance: .4, stormShare: 1 / 3, minLen: .3, maxLen: .6, cloudIn: 12, rainIn: 8, rainOut: 8, cloudOut: 15 };   /* Übergang in Sekunden: erst ziehen Wolken auf, dann setzt der Regen ein; am Ende hört erst der Regen auf, dann ziehen die Wolken ab */
+  function wetterPlan(d) { if (((d % WX_RULE.everyDays) + WX_RULE.everyDays) % WX_RULE.everyDays !== 0 || wxHash(d * 7 + 1) >= WX_RULE.chance) return null;
+    const len = WX_RULE.minLen + wxHash(d * 7 + 2) * (WX_RULE.maxLen - WX_RULE.minLen); return { t0: wxHash(d * 7 + 3) * (1 - len), len, storm: wxHash(d * 7 + 4) < WX_RULE.stormShare }; }
+  try { const m = /[?&]wetter=(regen|gewitter|klar)/.exec(location.search); if (m) window.FORCE_WX = m[1]; } catch (e) {}
+  function wetter(ms) {
+    const F = window.FORCE_WX; if (F === 'regen') return { rain: 1, storm: 0 }; if (F === 'gewitter') return { rain: 1, storm: 1 }; if (F === 'klar') return { rain: 0, storm: 0 };
+    const f = ms / ((window.DAY_MINUTES || 10) * 60000) + .35, d = Math.floor(f), t = f - d, p = wetterPlan(d); if (!p) return { rain: 0, storm: 0 };
+    const r = t >= p.t0 && t < p.t0 + p.len ? 1 : 0; return { rain: r, storm: p.storm ? r : 0 }; }
+  /* Weicher Übergang (v136): wetter() sagt nur, was gerade gelten soll. wetterJetzt() führt den sichtbaren Zustand in jedem Bild dorthin:
+     cloud (Wolkendecke) steigt zuerst, erst bei geschlossener Decke beginnt rain; umgekehrt beim Aufklaren. Gilt genauso für die Testknöpfe.
+     going = die Wolken ziehen gerade ab. window.FORCE_WX_NOW = true springt ohne Übergang (für Tests). */
+  const WXS = { cloud: 0, rain: 0, storm: 0, going: false, init: false };
+  function wetterJetzt(ms, dt) { const z = wetter(ms), want = z.rain > .5, sw = want && z.storm > .5, S = WXS;
+    if (!S.init || window.FORCE_WX_NOW || !(dt >= 0)) { S.init = true; S.cloud = S.rain = want ? 1 : 0; S.storm = sw ? 1 : 0; S.going = !want; }
+    else { const d = Math.min(dt, .1);
+      if (want) { S.going = false; S.cloud = Math.min(1, S.cloud + d / WX_RULE.cloudIn); if (S.cloud >= 1) S.rain = Math.min(1, S.rain + d / WX_RULE.rainIn); }
+      else { S.going = true; S.rain = Math.max(0, S.rain - d / WX_RULE.rainOut); if (S.rain <= 0) S.cloud = Math.max(0, S.cloud - d / WX_RULE.cloudOut); }
+      S.storm = sw && S.rain > .6 ? Math.min(S.rain, S.storm + d / 6) : Math.max(0, Math.min(S.rain, S.storm - d / 6)); }
+    return { cloud: S.cloud, rain: S.rain, storm: S.storm, going: S.going }; }
+  // Farben des Tages bei Regen: grauer, dunkler, dazu ein kühler Schleier über allem
+  function wetK(k, r, s) { if (!(r > .001)) return k; const o = { t: k.t, night: k.night };
+    CK.forEach(c => { const v = k[c], g = v[0] * .3 + v[1] * .59 + v[2] * .11, grey = [g * .9 + 4, g * .94 + 6, g + 10], q = (c === 'top' || c === 'bot' || c === 'cloud' ? .8 : .5) * r, dk = 1 - (.13 + .1 * s) * r; o[c] = mix(v, grey, q).map(x => x * dk); });
+    const t = k.tint, a2 = (.2 + .1 * s) * r, a = 1 - (1 - t[3]) * (1 - a2), w = a2 / (a2 + t[3] + 1e-6), c2 = mix([t[0], t[1], t[2]], mix([74, 86, 108], [22, 26, 44], k.night), w);   /* nachts ein dunkler statt eines hellgrauen Schleiers */ o.tint = [c2[0], c2[1], c2[2], a]; return o; }
+  // Wetter zeichnen (v137): gemeinsam für den Werkshof und für den Blick durch die Hallenfenster
+  const CALM = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);   /* „weniger Bewegung“: kein Aufblitzen */
+  function wetterHimmel(sc, k, wx, hz, time, vol) {   // Wolkendecke, Regenwolken, Blitz (Rückgabe: Helligkeit des Blitzes 0..1) und Donner
+    const cl = wx.cloud === undefined ? wx.rain : wx.cloud, stm = wx.storm, n = k.night; let flash = 0; if (!(cl > .01)) return 0;
+    {   // geschlossene Wolkendecke: grauer Schleier über Himmel, Sonne, Mond und Sternen, davor graue Haufenwolken
+      const oc = mix(mix([118, 126, 140], [30, 34, 58], n), k.top, .4),   /* nachts dunkel, sonst würde der Himmel bei Regen heller als in klarer Nacht */ c2 = rgb(oc.map(v => v * .74)), c3 = rgb(oc.map(v => v * .6));
+      sc.globalAlpha = Math.min(.9, (.52 + .2 * stm + .3 * n) * cl); R(sc, 0, 0, W, hz, rgb(oc));
+      /* Regenwolken (v135): weiche graue Haufenwolken im Stil der Schönwetterwolken, nur wenig heller und dunkler als die Wolkendecke. Die dunklen Balken aus v134 sind weg */
+      const cHi = rgb(mix(oc, [255, 255, 255], .2 * (1 - n) + .06)), cm = rgb(mix(oc, [255, 255, 255], .1 * (1 - n) + .03)), cu = rgb(oc.map(v => v * .88));
+      sc.globalAlpha = .9 * cl * cl * (3 - 2 * cl);   /* v138: die grauen Wolken blenden an ihrem Platz weich ein und aus, sie ziehen nicht mehr schnell ins Bild oder hinaus; die Schönwetterwolken dahinter werden vom Schleier grau */ for (let i = 0; i < 8; i++) { const w = 46 + (i * 29) % 40, x = Math.round(((i * 71 + time * (1.2 + (i % 3) * .6)) % (W + w + 30)) - w - 15), b = 12 + (i * 17) % 40, nb = 3 + Math.floor(w / 16);
+        for (let j = 0; j < nb; j++) { const dx = Math.round(6 + (j + .5) / nb * (w - 12)), r = 3 + ((i * 3 + j * 5) % 4) + (j === Math.floor(nb / 2) ? 2 : 0); for (let yy = -r; yy <= 0; yy++) { const hw = Math.round(Math.sqrt(r * r - yy * yy) * 1.5); R(sc, x + dx - hw, b - 3 + yy, hw * 2 + 1, 1, yy === -r ? cHi : cm); } }
+        R(sc, x + 1, b - 3, w - 2, 1, cm); R(sc, x, b - 2, w, 1, cm); R(sc, x, b - 1, w, 1, cu); R(sc, x + 3, b, w - 6, 1, cu); }
+      sc.globalAlpha = 1;
+      if (stm > .5) {   // Gewitter: alle paar Sekunden ein Blitz hinter den Gebäuden, der Donner folgt mit Abstand
+        const slot = Math.floor(time / 9), u = time - (slot * 9 + 1 + wxHash(slot * 3 + 12) * 4);
+        if (wxHash(slot * 3 + 11) < .6) {
+          const bx0 = 40 + wxHash(slot * 3 + 13) * (W - 80);
+          if (u >= 0 && u < .34) { flash = u < .09 ? 1 : u < .17 ? .15 : u < .26 ? .6 : .2;
+            sc.globalAlpha = flash * (CALM ? .1 : .3); R(sc, 0, 0, W, hz, '#e4ecff');
+            let bx = bx0; for (let y = 4, j = 0; y < hz - 4; y += 3, j++) { const nx = bx + Math.round((wxHash(slot * 31 + j) - .5) * 9); sc.globalAlpha = flash * .35; R(sc, Math.min(bx, nx) - 1, y, Math.abs(nx - bx) + 3, 3, '#bcd0ff'); sc.globalAlpha = flash; R(sc, Math.min(bx, nx), y, Math.abs(nx - bx) + 1, 1, '#fffbe8'); R(sc, nx, y, 1, 3, '#fffbe8'); bx = nx; }
+            sc.globalAlpha = 1; }
+          SFX.edge('thun' + (slot % 6), u >= .5 + wxHash(slot * 3 + 14) * 1.6 && u < 5, 'thunder', { pan: SFX.panX(bx0), vol: vol === undefined ? .9 : vol }); } }
+    }
+    return flash; }
+  /* Regenstreifen: schräge Tropfen in zwei Tiefen über die Fläche W x hgt. Die Seitwärtsbewegung wird aufsummiert (RDRIFT):
+     ändert sich die Schräge (Regen wird zum Gewitter), springen die Tropfen nicht mehr zur Seite, sie neigen sich nur stärker. */
+  const RAIN = Array.from({ length: 180 }, (_, i) => ({ x: wxHash(i * 5 + 1) * (W + 40), y: wxHash(i * 5 + 2) * (H + 12), s: .85 + wxHash(i * 5 + 3) * .3 })); let RDRIFT = 0;
+  function regen(g, wx, time, dt, n, hgt) { const rn = wx.rain, stm = wx.storm; if (!(rn > .01)) return; const slant = .35 + .25 * stm, cnt = Math.round((130 + 50 * stm) * rn), dim = 1 - .35 * n; RDRIFT += slant * (dt || 0);
+    for (let i = 0; i < cnt; i++) { const d = RAIN[i], near = i % 3 === 0, v = (near ? 300 : 215) * d.s, len = near ? 5 : 3;
+      const yy = (d.y + time * v) % (hgt + 12) - 6, xx = (((d.x - RDRIFT * v) % (W + 40)) + W + 40) % (W + 40) - 8;
+      g.globalAlpha = (near ? .62 : .4) * dim; for (let j = 0; j < len; j++) R(g, Math.round(xx - j * slant), Math.round(yy + j), 1, 1, near ? '#dbe8f5' : '#b9cbdc'); }
+    g.globalAlpha = 1; }
   function cachedLayer(name, h, key, draw) { let c = LCACHE[name]; if (!c) { const cv = document.createElement('canvas'); cv.width = W; cv.height = h; c = LCACHE[name] = { cv, g: cv.getContext('2d'), key: null }; }
     if (c.key !== key) { c.g.clearRect(0, 0, W, h); draw(c.g); c.key = key; } return c.cv; }
   const kq = (...vals) => vals.map(v => Array.isArray(v) ? v.map(Math.round).join(',') : typeof v === 'number' ? v.toFixed(3) : String(v)).join('|');
@@ -582,6 +643,9 @@ const ART = (() => {
   function tint(g, w, h, t) { if (t[3] < .01) return; g.globalCompositeOperation = 'source-atop'; g.fillStyle = `rgba(${t[0] | 0},${t[1] | 0},${t[2] | 0},${t[3]})`; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
   // Lichtschein-Ebene: Personen (und was sonst vorne steht) werden aus dem Schein ausgeschnitten, damit er sie nicht überdeckt
   const GLC = mk(W, H), GLG = GLC.getContext('2d'), MKC = mk(W, H), MKG = MKC.getContext('2d');
+  /* Düsenflamme (v131): oben an der Düse breit, läuft nach unten spitz aus wie ein echter Triebwerksstrahl. x, y = linke obere Ecke an der Düse, w = Breite, len = Länge */
+  const flame = (g, x, y, w, len) => { [['#ff5a2c', 1, 1], ['#ff7a2c', .78, .82], ['#ffd56a', .5, .6], ['#fffaf0', .2, .38]].forEach(([c, fw, fl]) => { const n = Math.max(1, Math.round(len * fl)), bw = Math.max(1, Math.round(w * fw));
+    for (let i = 0; i < n; i++) { let wi = Math.max(1, Math.round(bw * (1 - Math.pow(i / n, 1.3)))); if ((w - wi) % 2) wi = Math.max(1, wi - 1);   /* gleiche Parität wie w: jede Zeile sitzt genau mittig */ R(g, Math.round(x) + Math.floor((w - wi) / 2), Math.round(y) + i, wi, 1, c); } }); };
   function glowPass(sc, L, alphaOf, extra) {
     GLG.clearRect(0, 0, W, H); for (const l of L) { const a = alphaOf(l); if (a > .03) glow(GLG, l, a); }
     if (extra) extra(GLG);   /* weiteres Licht (Suchscheinwerfer), wird wie der Schein an Figuren ausgespart */
@@ -594,7 +658,8 @@ const ART = (() => {
     gr.addColorStop(0, `rgba(${r0},${g0},${b0},${.34 * a})`); gr.addColorStop(.45, `rgba(${r0},${g0},${b0},${.14 * a})`); gr.addColorStop(1, `rgba(${r0},${g0},${b0},0)`);
     g.fillStyle = gr; g.fillRect(-rx, -rx, rx * 2, rx * 2); g.restore();
     g.globalAlpha = a;
-    if (l.w >= 4 && l.h >= 4) { for (let y = 0; y < l.h; y++) { const t = (y + .5) / l.h * 2 - 1, hw = Math.round(l.w / 2 * Math.sqrt(1 - t * t)); R(g, Math.round(cx - hw), l.y + y, hw * 2, 1, c); } }   // runder Kern bei großen Lichtern
+    if (l.soft) { /* nur der Schein, kein farbiger Kern (Düsenflammen zeichnen sich selbst) */ }
+    else if (l.w >= 4 && l.h >= 4) { for (let y = 0; y < l.h; y++) { const t = (y + .5) / l.h * 2 - 1, hw = Math.round(l.w / 2 * Math.sqrt(1 - t * t)); R(g, Math.round(cx - hw), l.y + y, hw * 2, 1, c); } }   // runder Kern bei großen Lichtern
     else R(g, l.x, l.y, l.w, l.h, c);
     g.globalAlpha = 1; }
 
@@ -865,5 +930,5 @@ const ART = (() => {
   const gardenX = y => { const q = Math.max(0, Math.min(1, (y - UP) / (PROM - UP))), e2 = q * q * (3 - 2 * q); return 318 + 24 * e2 + 9 * Math.sin(q * Math.PI) * (1 - q * .4) + 3; };   // Mitte des Gartenwegs
   const MEXT = 50, mechaU = time => (time + 60) % (150 + MEXT);   /* gemeinsamer Zeitplan der Mecha-Wache (Werkshof und Kraftwerk), Periode 200 s, davon gut 80 s draußen */
   const mechaUi = time => { const u = mechaU(time); return u < 36 ? u : u < 36 + MEXT ? 36 : u - MEXT; };   /* fürs Kraftwerk: alter 150-s-Plan, die zusätzliche Zeit ist er draußen */
-  return { cachedLayer, kq, mechaU, mechaUi, MEXT, _loseAll: () => SPRITES.forEach(sp => { sp.c.getContext('2d').clearRect(0, 0, sp.c.width, sp.c.height); sp.f.getContext('2d').clearRect(0, 0, sp.f.width, sp.f.height); }), canvasLost, restoreAll, onRestore, PAINT, paintPal, OCC, glowPass, EMBLEM, robocat, catStep, gardenX, POND, relight, tn, sBox, sCylV, sBall, PROM_X, RCY, BAY, UP, PATH_END, onPath, pathDip, PROM, FORKX, HILL0, HILL1, STAIR0, VERGE, W, H, G, ROAD, WATER, PAL, R, mk, mix, hx, rgb, rng, buildSprite, blit, BUILD, SPR, skyAt, tint, glow, backdrop, ground, water, hillH, flies, parts, puff, stepParts, Grid, fill, brickWall, corrugated, windowAt, door, sh, RAMP };
+  return { cachedLayer, kq, mechaU, mechaUi, MEXT, _loseAll: () => SPRITES.forEach(sp => { sp.c.getContext('2d').clearRect(0, 0, sp.c.width, sp.c.height); sp.f.getContext('2d').clearRect(0, 0, sp.f.width, sp.f.height); }), canvasLost, restoreAll, onRestore, PAINT, paintPal, OCC, glowPass, flame, wetter, wetterJetzt, wetK, wxHash, wetterHimmel, regen, CALM, EMBLEM, robocat, catStep, gardenX, POND, relight, tn, sBox, sCylV, sBall, PROM_X, RCY, BAY, UP, PATH_END, onPath, pathDip, PROM, FORKX, HILL0, HILL1, STAIR0, VERGE, W, H, G, ROAD, WATER, PAL, R, mk, mix, hx, rgb, rng, buildSprite, blit, BUILD, SPR, skyAt, tint, glow, backdrop, ground, water, hillH, flies, parts, puff, stepParts, Grid, fill, brickWall, corrugated, windowAt, door, sh, RAMP };
 })();

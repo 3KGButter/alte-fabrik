@@ -68,12 +68,12 @@
   const collectable = id => stOf(id) ? kannAbholen_(id, S(), now()) : 0;
 
   // Geräusche zu Aktionen (neue Aktionen hier eintragen)
-  const ACT_SND = { buy: 'coin', sell: 'coin', build: 'build', repair: 'build', upgrade: 'build', mecha: 'build', place: 'place', unplace: 'unplace', zeigen: 'place', claim: 'reward', collect: 'crate', order: 'stamp', deliver: 'stamp', power: 'lamp', mechaPaint: 'hiss', mechaName: 'ding', spind: 'reward', discard: 'unplace', avatar: 'click' };
+  const ACT_SND = { buy: 'coin', sell: 'coin', build: 'build', repair: 'build', upgrade: 'build', mecha: 'build', place: 'place', unplace: 'unplace', zeigen: 'place', claim: 'reward', collect: 'crate', order: 'crate', deliver: 'stamp', power: 'lamp', mechaPaint: 'hiss', mechaName: 'ding', spind: 'reward', discard: 'unplace', avatar: 'click' };
   const sndIcon = () => { const b = $('sndBtn'); if (!b) return; b.innerHTML = '<svg viewBox="0 0 16 16" width="18" height="18" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="6" width="3" height="4"/><rect x="4" y="5" width="2" height="6"/><rect x="6" y="3" width="2" height="10"/>' + (SFX.on ? '<rect x="10" y="6" width="1" height="4"/><rect x="12" y="4" width="1" height="8"/><rect x="11" y="5" width="1" height="1"/><rect x="11" y="10" width="1" height="1"/>' : '<rect x="10" y="5" width="1" height="1"/><rect x="11" y="6" width="1" height="1"/><rect x="12" y="7" width="1" height="2"/><rect x="13" y="6" width="1" height="1"/><rect x="14" y="5" width="1" height="1"/><rect x="11" y="9" width="1" height="1"/><rect x="13" y="9" width="1" height="1"/><rect x="10" y="10" width="1" height="1"/><rect x="14" y="10" width="1" height="1"/>') + '</svg>'; b.classList.toggle('off', !SFX.on); b.setAttribute('aria-pressed', SFX.on ? 'true' : 'false'); };
   $('sndBtn').addEventListener('click', () => { SFX.setOn(!SFX.on); sndIcon(); if (SFX.on) SFX.play('click'); toast(SFX.on ? 'Geräusche an' : 'Geräusche aus'); });
   sndIcon();
   ['visibilitychange', 'pageshow', 'focus'].forEach(e => addEventListener(e, () => { if (!document.hidden && ART.canvasLost()) ART.restoreAll(); }));
-  document.addEventListener('click', e => { if (e.target.closest('.btn, .abtn, .vbtn, .row.click, [data-view]')) SFX.play('click'); }, true);   /* leises Klicken bei Knöpfen */
+  document.addEventListener('click', e => { if (e.target.closest('[data-m="tprev"], [data-m="tnext"]')) return;   /* Blättern klingt nur nach Papier, ohne Klick davor (v133) */ if (e.target.closest('.btn, .abtn, .vbtn, .row.click, [data-view]')) SFX.play('click'); }, true);   /* leises Klicken bei Knöpfen */
   // Toasts
   const tq = []; let tBusy = false, tTimer = null;
   function toast(m, bad, now) { if (now) { tq.length = 0; clearTimeout(tTimer); tBusy = false; } tq.push([m, bad]); if (!tBusy) nextToast(); }
@@ -81,13 +81,73 @@
   function busy(on) { const b = $('busy'), host = $('app').classList.contains('hidden') ? document.body : $('stage'); if (b.parentNode !== host) host.appendChild(b); b.classList.toggle('hidden', !on); }   /* Ladesymbol mitten über dem Spielfeld, nicht mitten im Fenster */
 
   // ---------- Server ----------
-  async function api(body) {
+  async function api(body, keep) {
     const req = Object.assign({}, cred, body);
     if (MOCK) return MockServer.call(req);
-    const r = await fetch(window.API_URL, { method: 'POST', body: JSON.stringify(req) });
+    const r = await fetch(window.API_URL, { method: 'POST', body: JSON.stringify(req), keepalive: !!keep });   /* keepalive: die Anfrage geht auch noch hinaus, wenn die Seite gleich danach geschlossen wird */
     return r.json();
   }
+  /* Sofort-Aktionen (v124): Das Spiel rechnet eine Aktion mit denselben Regeln wie der Server (server-logic.js) sofort selbst aus und zeigt das Ergebnis ohne Ladesymbol.
+     Die Anfrage geht gleichzeitig an den Server, eine nach der anderen in der Reihenfolge des Antippens. Der Server bleibt maßgeblich:
+     Lehnt er etwas ab oder fehlt die Verbindung, gilt wieder sein Stand. */
+  const SOFORT = { claim: 1, build: 1, repair: 1, upgrade: 1, power: 1, collect: 1, order: 1, buy: 1, place: 1, discard: 1, spind: 1, unplace: 1, sell: 1, zeigen: 1, mecha: 1, mechaPaint: 1, mechaName: 1, avatar: 1 };
+  const warte = [], frei = []; let sendet = false, opSeq = 0, Dsrv = null, syncT = null;
+  const unterwegs = () => sendet || warte.length > 0;
+  const ruhe = () => unterwegs() ? new Promise(r => frei.push(r)) : Promise.resolve();
+  function syncZeigen(on) {   /* kleiner Hinweis unten rechts, nur wenn das Speichern ungewöhnlich lange dauert */
+    let el = $('sync'); if (!el) { el = document.createElement('div'); el.id = 'sync'; el.className = 'hidden'; el.setAttribute('aria-hidden', 'true'); el.innerHTML = '<div class="spinner"></div>'; $('stage').appendChild(el); }
+    clearTimeout(syncT); if (on) syncT = setTimeout(() => el.classList.remove('hidden'), 2500); else el.classList.add('hidden');
+  }
+  const sicht = d => { const st = JSON.parse(JSON.stringify(d.state || {})); Object.keys(st.st || {}).forEach(k => { delete st.st[k].buf; delete st.st[k].last; }); return JSON.stringify([st, d.quests, d.areas, d.badges, d.user]); };   /* alles Sichtbare ohne die laufenden Zähler der Maschinen */
+  function zurueck(msg) {   /* auf den letzten bestätigten Stand des Servers */
+    if (Dsrv) apply(Object.assign({}, Dsrv, { now: Date.now() + skew }));
+    toast(msg, true, true); SFX.play('error');
+  }
+  async function senden() {
+    if (sendet) return; sendet = true; syncZeigen(true);
+    while (warte.length) {
+      let res = null;
+      try { res = await api(warte[0], true); } catch (e) { console.error(e); }
+      warte.shift();
+      if (res && res.ok && res.state) {
+        if (warte.length) { Dsrv = res; continue; }   /* es folgen noch Aktionen: erst die letzte Antwort zählt */
+        if (sicht(res) === sicht(D)) { Dsrv = res; D = res; skew = res.now - Date.now(); renderChrome(); }   /* stimmt überein: still übernehmen */
+        else apply(res);
+        continue;
+      }
+      warte.length = 0;   /* abgelehnt oder keine Verbindung: die folgenden Aktionen bauen darauf auf und entfallen */
+      if (res && res.state) { apply(res); toast(res.error || 'Das hat nicht geklappt.', true, true); SFX.play('error'); }
+      else if (res) zurueck(res.error || 'Das hat nicht geklappt.');
+      else { let r = null; try { r = await api({ action: 'login' }); } catch (e) {}
+        if (r && r.ok && r.state) { apply(r); toast('Die Verbindung war kurz weg. Bitte prüfe deine letzte Aktion.', true, true); SFX.play('error'); }
+        else zurueck('Keine Verbindung zum Server. Deine letzte Aktion wurde nicht gespeichert.'); }
+    }
+    sendet = false; syncZeigen(false); frei.splice(0).forEach(r => r());
+  }
+  function sofort(body) {   /* Aktion hier ausrechnen; null = lieber den Server fragen */
+    try {
+      const st = JSON.parse(JSON.stringify(D.state)), t = now();
+      const ctx = { quests: D.quests, areas: D.areas, bossDefeated: D.bossDefeated, profile: D.user, badges: D.badges, stand: D.stand };
+      const res = aktion_(body.action, Object.assign({}, cred, body), st, ctx, t);
+      if (!res || !res.ok) return { ok: false, error: (res && res.error) || 'Das hat nicht geklappt.' };
+      const cl = {}; (st.claimed || []).forEach(n => cl[n] = true);
+      return Object.assign({}, D, { ok: true, now: Date.now() + skew, state: st, msg: res.msg || '', got: res.got,
+        quests: D.quests.map(q => Object.assign({}, q, { claimed: !!cl[q.n] })),
+        badges: (D.badges || []).map(b => b.id === 'b8' ? { id: 'b8', ok: (st.mecha || 0) >= R().mecha.length } : b) });
+    } catch (e) { console.error(e); return null; }
+  }
   async function act(body, quiet) {
+    if (D && SOFORT[body.action] && typeof aktion_ === 'function') {
+      const res = sofort(body);
+      if (res) {
+        if (!res.ok) { toast(res.error, true); SFX.play('error'); return res; }
+        opSeq++; apply(res, true);
+        if (!quiet) SFX.play(ACT_SND[body.action] || '', { vol: .9 });   /* jede Aktion klingt passend */
+        warte.push(body); senden();
+        return res;
+      }
+    }
+    await ruhe();   /* alles andere (Aktualisieren, Testknöpfe) wartet, bis die Sofort-Aktionen gespeichert sind */
     busy(true);
     try {
       const res = await api(body);
@@ -99,7 +159,10 @@
     } catch (e) { console.error(e); toast('Keine Verbindung zum Server. Bitte später erneut versuchen.', true); return { ok: false }; }
     finally { busy(false); }
   }
-  function apply(d) {
+  /* Stand vom Server holen (Bauzeit, alle 5 Minuten): nie dazwischenfunken, solange eigene Aktionen unterwegs sind */
+  async function holen() { if (unterwegs()) return null; const n = opSeq; const r = await api({ action: 'login' }); return (unterwegs() || n !== opSeq) ? null : r; }
+  function apply(d, lokal) {
+    if (!lokal) Dsrv = d;
     const before = D && JSON.stringify(D.areas), mBefore = D ? mechaStage() : null;
     D = d; skew = d.now - Date.now();
     if (before && before !== JSON.stringify(d.areas)) { toast('Ein neuer Bereich ist offen! Du hast einen neuen Bauplan.'); SFX.play('unlock', { delay: .3 }); }
@@ -140,7 +203,7 @@
     b.tor = 'ok'; marks.tor = tutSeen() ? null : 'help';
     if (built('kraftwerk')) running.kraftwerk = 2;
     const cu = cut ? time - cut.t0 : 0;
-    return { mecha: mechaDone() ? { paint: S().mechaPaint || 'stahl', act: actState() } : null, fw: cut && cut.k === 'fw' ? cu : undefined, kat: cut && cut.k === 'kat' ? cu : undefined, trophy: katOk() && !(cut && cut.k === 'kat'), b, bauP, running, marks, golem: !areaOpen('ms5'), truck: unclaimed().length, truckT, owned: shownOwned(), placed: placedIn(1), meister: (S().stamps || 0) >= R().orders.stampsForTitle, badges: badgeCols(), showSlots: !!placeItem && whereOf(placeItem) === 'aussen', sel: (sel && sel.hit && sel.kind !== 'placed' && sel.kind !== 'fixed' ? sel.hit : null) || modeHit() };   /* Katalog-Gegenstände ohne Auswahlrahmen (Immersion) */
+    return { wx: WXNOW || ART.wetter(now()), mecha: mechaDone() ? { paint: S().mechaPaint || 'stahl', act: actState() } : null, fw: cut && cut.k === 'fw' ? cu : undefined, kat: cut && cut.k === 'kat' ? cu : undefined, trophy: katOk() && !(cut && cut.k === 'kat'), b, bauP, running, marks, golem: !areaOpen('ms5'), truck: unclaimed().length, truckT, owned: shownOwned(), placed: placedIn(1), meister: (S().stamps || 0) >= R().orders.stampsForTitle, badges: badgeCols(), showSlots: !!placeItem && whereOf(placeItem) === 'aussen', sel: (sel && sel.hit && sel.kind !== 'placed' && sel.kind !== 'fixed' ? sel.hit : null) || modeHit() };   /* Katalog-Gegenstände ohne Auswahlrahmen (Immersion) */
   }
   // Riesen-Golem im Kraftwerk: jede Maschinen-Verbesserung (Stufe 2 und 3) bringt den Bau weiter, 6 Abschnitte
   const modeHit = () => ({ badges: 'brett', orders: 'auftraege', quests: 'questbuch', rank: 'rang', keys: 'schluessel' })[mode] || null;   // offene Tafel/Buch im Raum umrahmen
@@ -164,8 +227,9 @@
     const dt = Math.min(.05, (ts - (last || ts)) / 1000); last = ts; time += dt; if (window.FORCE_TIME !== undefined) time = window.FORCE_TIME;
     if (!D) return;
     const t = dayT();
+    { const wx = ART.wetterJetzt(now(), dt); WXNOW = wx; if (wx.rain > .02) SFX.hum('rain', wx.rain * (view === 'hof' ? .5 + .2 * wx.storm : .2)); }   /* Regen rauscht draußen, in den Hallen nur gedämpft */
     if (view === 'hof') SCENE.yard(ctx, yardState(), t, time, dt);
-    else INNER.draw(ctx, view, roomState(view), t, time, dt);
+    else INNER.draw(ctx, view, Object.assign(roomState(view), { wx: WXNOW }), t, time, dt);
     // aufsteigende Icons
     for (let i = pops.length - 1; i >= 0; i--) { const p = pops[i]; p.age += dt; if (p.age > 1.6) { pops.splice(i, 1); continue; } ctx.globalAlpha = Math.max(0, Math.min(1, (1 - p.age / 1.6) * 1.6)); ctx.drawImage(ICV[p.k], Math.round(p.x - 7), Math.round(p.y - p.age * 14)); }
     ctx.globalAlpha = 1;
@@ -179,7 +243,8 @@
       ctx.fillStyle = '#0b1030'; ctx.fillRect(0, 0, cvs.width, cvs.height); ctx.restore(); }
     if (Math.floor(time * 2) !== Math.floor((time - dt) * 2)) { $('clock').textContent = clockText(t); renderPanel(); renderBadges(); }
   }
-  function clockText(t) { const h = t * 24, hh = Math.floor(h), mm = Math.floor((h - hh) * 6) * 10; const ph = t < .17 || t >= .84 ? 'Nacht' : t < .3 ? 'Morgen' : t < .7 ? 'Tag' : 'Abend'; return `${ph}, ${hh}:${String(mm).padStart(2, '0')} Uhr · ${D.user.tag}`; }
+  let WXNOW = null;
+  function clockText(t) { const h = t * 24, hh = Math.floor(h), mm = Math.floor((h - hh) * 6) * 10; const ph = t < .17 || t >= .84 ? 'Nacht' : t < .3 ? 'Morgen' : t < .7 ? 'Tag' : 'Abend'; const wt = !WXNOW ? '' : WXNOW.rain > .3 ? (WXNOW.storm > .3 ? ' · Gewitter' : ' · Regen') : WXNOW.cloud > .5 ? ' · bewölkt' : ''; return `${ph}, ${hh}:${String(mm).padStart(2, '0')} Uhr${wt} · ${D.user.tag}`; }
 
   // ---------- Kopfzeile, Reiter, Ziel ----------
   function renderChrome() {
@@ -394,15 +459,25 @@
     });
     return h;
   }
+  /* Jetzt machbar (v126): Die Hauptquests sind eine Kette, offen ist immer nur die erste noch nicht erledigte.
+     Nebenquests zweigen von der Hauptquest davor ab: Sie sind offen, sobald diese (und damit die Kette bis dorthin) erledigt ist.
+     MS5 = Arbeitsprobe, die hakt die Lehrkraft ab: gehört nicht zur Kette und wird nie hervorgehoben. */
+  /* Symbol „Zur Aufgabe“ (v127): Blatt mit Pfeil nach draußen, ohne Text */
+  const ICO_GO = '<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" shape-rendering="crispEdges" fill="currentColor"><rect x="1" y="4" width="2" height="11"/><rect x="1" y="13" width="11" height="2"/><rect x="10" y="9" width="2" height="6"/><rect x="1" y="4" width="6" height="2"/><rect x="9" y="1" width="6" height="2"/><rect x="13" y="1" width="2" height="6"/><rect x="11" y="3" width="2" height="2"/><rect x="9" y="5" width="2" height="2"/><rect x="7" y="7" width="2" height="2"/><rect x="5" y="9" width="2" height="2"/></svg>';
+  function freieQuests() { const frei = {}; let kette = true;
+    D.quests.forEach(q => { if (q.ms === 'MS5') return; if (!q.done && kette) frei[q.n] = true; if (q.hq) kette = kette && q.done; });
+    return frei; }
   function questsHTML() {
     const open = unclaimed();
-    let h = `<h2>Questbuch</h2><p>${D.quests.filter(q => q.done).length} von ${D.quests.length} Quests erledigt.</p>`;
+    const freiMap = freieQuests(), questFrei = q => !!freiMap[q.n], nFrei = Object.keys(freiMap).length;
+    let h = `<h2>Questbuch</h2><p>${D.quests.filter(q => q.done).length} von ${D.quests.length} Quests erledigt.${nFrei ? ` <span class="qhin"><span class="qpfeil" aria-hidden="true"></span>${nFrei} ${nFrei === 1 ? 'Quest ist' : 'Quests sind'} jetzt möglich.</span>` : ''}</p>`;
     if (open.length) { const g = open.reduce((s, q) => s + Math.round(q.xp * R().gearsPerXp), 0); h += `<div class="btns"><button class="btn main" data-act="claim">${open.length} Kiste${open.length > 1 ? 'n' : ''} öffnen ${costHTML({ gears: g })}</button></div>`; }
     const byMs = {}; D.quests.forEach(q => (byMs[q.ms] = byMs[q.ms] || []).push(q));
     Object.keys(byMs).forEach(ms => {
       const list = byMs[ms], a = areaOfMs(ms);
       h += `<h3>${esc(ms)} · ${esc((R().areas.find(x => x.id === a) || {}).name || '')} ${list.filter(q => q.done).length}/${list.length}</h3>`;
-      list.forEach(q => h += `<div class="row"><div class="grow"><div class="t">${q.done ? (q.claimed ? '✓ ' : '🎁 ') : ''}${esc(short(q.n))}</div><div class="s"><span class="tag ${q.hq ? 'hq' : 'nq'}">${q.hq ? 'HQ' : 'NQ'}</span>${q.xp} XP · ${Math.round(q.xp * R().gearsPerXp)} Zahnräder</div></div></div>`);
+      list.forEach(q => { const frei = questFrei(q), url = frei && /^https:\/\/[^\s"'<>]+$/i.test(q.url || '') ? q.url : '';   /* frei = jetzt machbar: hervorgehoben, mit Knopf zur Aufgabe in Mebis */
+        h += `<div class="row${frei ? (q.hq ? ' qfrei' : ' qfrei qneben') : ''}">${frei && q.hq ? '<span class="qpfeil" aria-hidden="true"></span>' : ''}<div class="grow"><div class="t">${q.done ? (q.claimed ? '✓ ' : '🎁 ') : ''}${esc(short(q.n))}</div><div class="s"><span class="tag ${q.hq ? 'hq' : 'nq'}">${q.hq ? 'HQ' : 'NQ'}</span>${q.xp} XP · ${Math.round(q.xp * R().gearsPerXp)} Zahnräder</div></div>${url ? `<a class="btn${q.hq ? ' main' : ''} qlink" href="${esc(url)}" target="_blank" rel="noopener" title="Zur Aufgabe in Mebis" aria-label="Zur Aufgabe in Mebis: ${esc(short(q.n))}">${ICO_GO}</a>` : ''}</div>`; });
     });
     return h;
   }
@@ -462,9 +537,9 @@
     const me = (S() && D.user && D.user.tag) || '';
     const row = e => `<tr class="${e.tag === me ? 'me' : ''}"><td class="pl">${e.p}</td><td>${esc(e.tag)}${e.stufe ? `<span class="st">${esc(e.stufe)}</span>` : ''}</td><td class="num">${fmt(e.xp)}</td><td class="num">${e.level}</td></tr>`;
     if (RANK.lehrer) h += `<p class="small">Lehrer-Ansicht: alle Klassen vollständig.</p><div class="klwahl" role="group" aria-label="Klasse wählen">${RANK.klassen.map(k => `<button class="btn x ${k === RANK.klasse ? 'main' : ''}" data-act="rankkl" data-id="${esc(k)}">${esc(k)}</button>`).join('')}</div>`;
-    else h += `<p class="small">Klasse ${esc(RANK.klasse)} · die besten 10${RANK.gesamt ? ' von ' + RANK.gesamt : ''}</p>`;
-    h += `<table class="rank"><thead><tr><th>Rang</th><th>Gamertag · Stufe</th><th class="num">XP</th><th class="num">Level</th></tr></thead><tbody>${(RANK.liste || []).map(row).join('')}`;
-    if (!RANK.lehrer && RANK.ich && RANK.ich.p > 10) h += `<tr class="gap"><td colspan="4">…</td></tr>${row(RANK.ich)}`;
+    else h += `<p class="small">Klasse ${esc(RANK.klasse)} · die besten 5${RANK.gesamt ? ' von ' + RANK.gesamt : ''} und du</p>`;
+    h += `<table class="rank"><thead><tr><th>Rang</th><th>Gamertag · Stufe</th><th class="num">XP</th><th class="num">Level</th></tr></thead><tbody>${(RANK.lehrer ? RANK.liste || [] : (RANK.liste || []).slice(0, 5)).map(row).join('')}`;   /* Schüler sehen nur die ersten 5 und sich selbst (v131); der Leitstand zeigt weiter alles */
+    if (!RANK.lehrer && RANK.ich && RANK.ich.p > 5) h += `<tr class="gap"><td colspan="4">…</td></tr>${row(RANK.ich)}`;
     h += `</tbody></table>`;
     if (!RANK.lehrer && !RANK.ich) h += `<p class="small muted">Du stehst noch nicht in der Rangliste.</p>`;
     return h;
@@ -480,13 +555,14 @@
     let h = `<h2>Menü</h2><p><b>${esc(u.tag)}</b> · ${esc(u.klasse || '')} · ${fmt(u.xp)} XP · Level ${u.level}${(S().stamps || 0) >= R().orders.stampsForTitle ? ' · ' + esc(R().orders.title) : ''}</p>
       <div class="btns"><button class="btn" data-act="tutorial">So funktioniert's</button><button class="btn" data-act="refresh">Neu laden</button><button class="btn" data-act="theme">Hell / Dunkel</button><button class="btn" data-act="logout">Abmelden</button></div>`;
     if (MOCK) h += `<h3>Vorschau-Werkzeuge</h3><div class="btns"><button class="btn" data-act="mock" data-id="mockSkip">12 Stunden vorspulen</button><button class="btn" data-act="mock" data-id="mockBau">Bauarbeiten beenden</button><button class="btn" data-act="mock" data-id="mockRich">+500 Zahnräder</button><button class="btn" data-act="mock" data-id="mockParts">+300 Teile</button><button class="btn" data-act="mock" data-id="mockStamps">+10 Stempel</button><button class="btn" data-act="mock" data-id="mockReset">Zurücksetzen</button></div>
+      <p class="small">Wetter:</p><div class="btns">${[['', 'nach Plan'], ['klar', 'klar'], ['regen', 'Regen'], ['gewitter', 'Gewitter']].map(([w, n]) => `<button class="btn x ${(window.FORCE_WX || '') === w ? 'main' : ''}" data-act="wetter" data-id="${w}">${n}</button>`).join('')}</div>
       <p class="small">Fortschritt in Mebis:</p><div class="btns">${['frueh', 'mitte', 'weit', 'alles'].map(s => `<button class="btn x" data-act="stand" data-id="${s}">${s}</button>`).join('')}</div>`;
     h += `<p class="small">Die Alte Fabrik · Fortschritt aus deinem Mebis-Kurs. Die Fabrik zählt nicht für XP oder Noten.</p>`;
     h += `<details class="lizenz"><summary>Lizenzen &amp; Quellen</summary><div class="small">
-      <p><b>Geräusche</b> (frei nutzbar): Kenney, kenney.nl (RPG Audio, Impact Sounds, Sci-Fi Sounds, CC0) · „Crickets Ambient Noise“ von Wolfgang_, OpenGameArt (CC0) · „Wind“ von felix.blume, freesound (CC0) · „Rocket launch“ von Sanderboah, freesound (CC0) · „Neutral ambient drone“ von xkeril, freesound (CC0) · „firework single“, Pixabay (Pixabay-Lizenz). Weitere Töne entstehen im Spiel selbst.</p>
+      <p><b>Geräusche</b> (frei nutzbar): Kenney, kenney.nl (RPG Audio, Impact Sounds, Sci-Fi Sounds, CC0) · „Crickets Ambient Noise“ von Wolfgang_, OpenGameArt (CC0) · „Rocket launch“ von Sanderboah, freesound (CC0) · „Neutral ambient drone“ von xkeril, freesound (CC0) · „firework single“, Pixabay (Pixabay-Lizenz). Weitere Töne entstehen im Spiel selbst.</p>
       <p><b>Mit Namensnennung</b> (CC BY 3.0): „Stream“ von mystiscool (freesound.org) · „Hoot Owl“ von Mike Koenig (soundbible.com).</p>
       <p><b>Schrift</b>: Pixelify Sans von Stefie Justprince (SIL Open Font License 1.1).</p>
-      <p><b>Grafik</b>: Pixelgrafik für die Alte Fabrik gezeichnet. Pflanzen nach dem Projekt „Stilles Ufer“, Plaketten aus dem XP-Rechner des Kurses.</p></div></details>`;   /* Namensnennung für die Aufnahmen, aufklappbar; beim Verlassen des Menüs wieder zu (Panel wird neu gebaut) */
+      <p><b>Grafik</b>: Pixelgrafik für die Alte Fabrik gezeichnet.</p></div></details>`;   /* Namensnennung für die Aufnahmen, aufklappbar; beim Verlassen des Menüs wieder zu (Panel wird neu gebaut) */
     return h;
   }
 
@@ -518,7 +594,7 @@
     if (a === 'power') { await act({ action: 'power', station: id, on: !stOf(id).on }); return renderPanel(true); }
     if (a === 'collect') return collect(id);
     if (a === 'claim') return claimAll();
-    if (a === 'order') { const r = await act({ action: 'order', i: +id }); if (r.ok) renderPanel(true); return; }
+    if (a === 'order') { const r = await act({ action: 'order', i: +id }); if (r.ok) { SFX.play('stamp', { delay: .22, vol: 1.5 }); renderPanel(true); } return; }   /* Abgeben: erst die Kiste (ACT_SND), dann hörbar der Stempel */
     if (a === 'trash') { trashOpen = trashOpen === id ? null : id; return renderPanel(true); }
     if (a === 'discard') { const [k, n] = id.split(':'); const r = await act({ action: 'discard', part: k, n: +n }); if (r.ok) { trashOpen = null; renderPanel(true); } return; }
     if (a === 'buy') { await act({ action: 'buy', item: id }); return renderPanel(true); }
@@ -536,6 +612,7 @@
     if (a === 'logout') { store.del('altefabrik_cred'); location.reload(); return; }
     if (a === 'mock') { await act({ action: id }); return renderPanel(true); }
     if (a === 'stand') { await act({ action: 'mockStand', stand: id }); return renderPanel(true); }
+    if (a === 'wetter') { if (id) window.FORCE_WX = id; else delete window.FORCE_WX; return renderPanel(true); }
   });
   async function collect(id) {
     const r = await act({ action: 'collect', station: id }, true);
@@ -703,8 +780,8 @@
   $('loginForm').addEventListener('submit', e => { e.preventDefault(); doLogin($('inTag').value.trim(), $('inPin').value.trim(), $('inRemember').checked); });
   let bauHolt = false;   /* Bauzeit: Restzeit im Panel aktuell halten; ist ein Bau fertig, neuen Stand holen und melden */
   setInterval(() => { if (!D || !S().bau) return; const ids = Object.keys(S().bau); if ((sel && sel.kind === 'building' && ids.includes(sel.id)) || ids.includes(view)) renderPanel(); if (bauHolt || !ids.some(id => S().bau[id] <= now())) return;
-    bauHolt = true; api({ action: 'login' }).then(r => { bauHolt = false; if (!r.ok) return; const fertig = ids.filter(id => r.state.b[id]); apply(r); fertig.forEach(id => { toast(bDef(id).name + ' ist fertig renoviert!'); SFX.play('unlock'); }); }).catch(() => { bauHolt = false; }); }, 5000);
-  setInterval(() => { if (D && !document.hidden && !MOCK) api({ action: 'login' }).then(r => { if (r.ok) apply(r); }).catch(() => {}); }, 5 * 60000);
+    bauHolt = true; holen().then(r => { bauHolt = false; if (!r || !r.ok) return; const fertig = ids.filter(id => r.state.b[id]); apply(r); fertig.forEach(id => { toast(bDef(id).name + ' ist fertig renoviert!'); SFX.play('unlock'); }); }).catch(() => { bauHolt = false; }); }, 5000);
+  setInterval(() => { if (D && !document.hidden && !MOCK) holen().then(r => { if (r && r.ok) apply(r); }).catch(() => {}); }, 5 * 60000);
 
   (async function init() {
     const th = store.get('altefabrik_theme'); if (th) document.documentElement.dataset.theme = th;
@@ -720,7 +797,7 @@
     $('login').classList.remove('hidden');
   })();
 
-  window.__G = { startCut, get D() { return D; }, setView, pick, openTutorial, closeModal, setMode: m => { mode = m; sel = null; renderPanel(true); }, get view() { return view; }, get sel() { return sel; }, SCENE, INNER };
+  window.__G = { startCut, act, get unterwegs() { return unterwegs(); }, get D() { return D; }, setView, pick, openTutorial, closeModal, setMode: m => { mode = m; sel = null; renderPanel(true); }, get view() { return view; }, get sel() { return sel; }, SCENE, INNER };
 })();
 
 // Spielsymbol in Lade- und Anmeldefenster, dazu als Tab-Symbol

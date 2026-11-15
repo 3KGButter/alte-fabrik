@@ -256,6 +256,27 @@ function cacheLeeren_(key) { CacheService.getScriptCache().remove(key + '_n'); }
 // Änderungen im Blatt „Zugang“ (PIN, aktiv) gelten sofort
 function onEdit(e) {
   try { if (e && e.range && e.range.getSheet().getName() === 'Zugang') cacheLeeren_('zug'); } catch (err) {}
+  try { if (e && e.range && e.range.getSheet().getName() === 'Links') cacheLeeren_('links'); } catch (err) {}
+}
+
+// ===================== MEBIS-LINKS =====================
+// Blatt „Links“ in dieser Tabelle: Spalte B = Name der Quest (wie im Questbuch), Spalte C = Adresse der Aufgabe in Mebis.
+// Das Spiel zeigt im Questbuch dann den Knopf „Zur Aufgabe“. Es werden nur Adressen mit https:// übernommen.
+function links_() {
+  if (MEMO_.links) return MEMO_.links;
+  let m = cacheGetJson_('links');
+  if (!m) {
+    m = {};
+    try {
+      const sh = SpreadsheetApp.getActive().getSheetByName('Links');
+      if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues().forEach(r => {
+        const n = String(r[1] || '').trim(), u = String(r[2] || '').trim();
+        if (n && /^https:\/\/[^\s"'<>]+$/i.test(u)) m[n] = u;
+      });
+    } catch (err) { console.warn('Blatt Links nicht lesbar', err); }
+    cachePutJson_('links', m, 600);
+  }
+  return (MEMO_.links = m);
 }
 
 // ===================== XP-RECHNER LESEN (NUR LESEN!) =====================
@@ -367,7 +388,8 @@ function kontext_(user) {
     bits = snap.done[user.tag] || '';
     prof = snap.profile[user.tag] || { xp: 0, level: 0, stufe: '', klasse: user.klasse };
   }
-  const quests = snap.quests.map((q, i) => Object.assign({}, q, { done: bits.charAt(i) === '1' }));
+  const links = links_();
+  const quests = snap.quests.map((q, i) => { const o = Object.assign({}, q, { done: bits.charAt(i) === '1' }); if (links[q.n]) o.url = links[q.n]; return o; });
   return kontextAusQuests_(quests, prof, snap.stand);
 }
 
@@ -408,7 +430,7 @@ function rangliste_(user, snap, wunsch) {
   if (user.demo) { const kl = klassen.indexOf(wunsch) >= 0 ? wunsch : klassen[0]; return { ok: true, lehrer: true, klassen: klassen, klasse: kl || '', liste: kl ? liste(kl) : [] }; }
   const kl = (prof[user.tag] || {}).klasse || user.klasse || '';
   const all = liste(kl), me = all.find(e => e.tag === user.tag) || null;
-  return { ok: true, klasse: kl, liste: all.slice(0, 10), ich: me, gesamt: all.length };
+  return { ok: true, klasse: kl, liste: all.slice(0, 5), ich: me, gesamt: all.length };   /* Schüler bekommen nur die ersten 5 und sich selbst; die Lehrkraft (Demo, Leitstand) alles */
 }
 
 // ===================== LEITSTAND (Tafel der Lehrkraft, nur lesen) =====================
@@ -516,7 +538,7 @@ function antwort_(user, state, ctx) {
     ok: true,
     now: Date.now(),
     user: { tag: user.tag, klasse: ctx.profile.klasse || user.klasse, xp: ctx.profile.xp, level: ctx.profile.level, stufe: ctx.profile.stufe },
-    quests: ctx.quests.map(q => ({ n: q.n, ms: q.ms, key: q.key, hq: q.hq, xp: q.xp, done: q.done, claimed: !!claimed[q.n] })),
+    quests: ctx.quests.map(q => ({ n: q.n, ms: q.ms, key: q.key, hq: q.hq, xp: q.xp, done: q.done, claimed: !!claimed[q.n], url: q.url || undefined })),   /* url: Adresse der Aufgabe in Mebis (Blatt „Links“), sonst nicht dabei */
     areas: ctx.areas,
     bossDefeated: ctx.bossDefeated,
     badges: ctx.badges.map(b => b.id === 'b8' ? { id: 'b8', ok: (state.mecha || 0) >= REGELN.mecha.length } : b),
@@ -921,6 +943,46 @@ function zettelErstellen() {
   if (rows) sh.setRowHeights(1, rows, 24);
 }
 
+// ===================== ZETTEL ALS PDF (druckfertig) =====================
+// Beim PDF-Export der Tabelle werden Zettel über Seitenränder geschnitten. Deshalb baut diese Funktion
+// ein eigenes PDF: A4 hochkant, 3 × 9 Zettel pro Seite, jede Klasse beginnt auf einer neuen Seite,
+// kein Zettel wird geteilt. Das PDF landet im selben Drive-Ordner wie diese Tabelle.
+const ZETTEL_SPALTEN = 3, ZETTEL_ZEILEN = 9;
+function zettelHtml_(list) {
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const seiten = [];
+  const klassen = {}; list.forEach(s => (klassen[s.klasse] = klassen[s.klasse] || []).push(s));
+  Object.keys(klassen).sort((a, b) => a.localeCompare(b, 'de')).forEach(kl => {
+    const l = klassen[kl], n = ZETTEL_SPALTEN * ZETTEL_ZEILEN;
+    for (let i = 0; i < l.length; i += n) seiten.push({ klasse: kl, l: l.slice(i, i + n) });
+  });
+  const zettel = s => '<td class="z"><div class="t">Die Alte Fabrik <span class="k">· Klasse ' + esc(s.klasse) + '</span></div>' +
+    '<div class="g">Gamertag: <b>' + esc(s.tag) + '</b></div><div class="g">PIN: <b>' + esc(s.pin) + '</b></div><div class="u">' + esc(SPIEL_URL) + '</div></td>';
+  const css = '@page{size:A4;margin:12mm 10mm}body{font-family:Arial,sans-serif;margin:0}' +
+    'table{border-collapse:collapse;width:100%;table-layout:fixed}' +
+    'td.z{border:1px dashed #555;height:28mm;padding:2mm 3mm;vertical-align:top;width:33.3%}' +
+    'tr{page-break-inside:avoid}.t{font-size:11pt;font-weight:bold;margin-bottom:1.5mm}.k{font-size:9pt;font-weight:normal;color:#444}' +
+    '.g{font-family:"Courier New",monospace;font-size:12pt;line-height:1.25}.g b{font-size:13pt}.u{font-size:7pt;color:#555;margin-top:1.5mm}' +
+    '.kopf{font-size:9pt;color:#666;margin:0 0 2mm}.seite{page-break-after:always}.seite:last-child{page-break-after:auto}';
+  return '<html><head><meta charset="utf-8"><style>' + css + '</style></head><body>' + seiten.map(sp => {
+    const zeilen = []; for (let i = 0; i < sp.l.length; i += ZETTEL_SPALTEN) zeilen.push(sp.l.slice(i, i + ZETTEL_SPALTEN));
+    return '<div class="seite"><p class="kopf">Zugangszettel Klasse ' + esc(sp.klasse) + ' · entlang der gestrichelten Linien ausschneiden</p><table>' +
+      zeilen.map(z => '<tr>' + z.map(zettel).join('') + '<td class="leer"></td>'.repeat(ZETTEL_SPALTEN - z.length) + '</tr>').join('') + '</table></div>';
+  }).join('') + '</body></html>';
+}
+function zettelPdfErstellen() {
+  const ss = SpreadsheetApp.getActive();
+  const list = zugangsliste_().filter(r => r.aktiv).sort((a, b) => (a.klasse + ' ' + a.tag).localeCompare(b.klasse + ' ' + b.tag, 'de'));
+  if (!list.length) { console.log('Keine aktiven Zugänge gefunden.'); return; }
+  const name = 'Alte Fabrik – Zettel ' + Utilities.formatDate(new Date(), 'Europe/Berlin', 'dd.MM.yyyy HH-mm') + '.pdf';
+  const pdf = Utilities.newBlob(zettelHtml_(list), 'text/html', 'zettel.html').getAs('application/pdf').setName(name);
+  const ordner = DriveApp.getFileById(ss.getId()).getParents();
+  const datei = ordner.hasNext() ? ordner.next().createFile(pdf) : DriveApp.createFile(pdf);
+  const html = HtmlService.createHtmlOutput('<p style="font-family:Arial">Das PDF liegt im selben Ordner wie diese Tabelle:</p><p style="font-family:Arial"><a href="' + datei.getUrl() + '" target="_blank">' + name + '</a></p><p style="font-family:Arial;color:#666;font-size:12px">Beim Drucken „Tatsächliche Größe“ bzw. 100 % wählen, nicht „An Seite anpassen“.</p>').setWidth(460).setHeight(170);
+  console.log('PDF erstellt: ' + name + ' – ' + datei.getUrl());
+  try { SpreadsheetApp.getUi().showModalDialog(html, 'Zettel als PDF'); } catch (e) { /* im Editor gestartet: kein Fenster möglich, der Link steht im Protokoll */ }
+}
+
 /** Zum Testen im Editor: zeigt, was das Script aus dem XP-Rechner liest. */
 function testLesen() {
   cacheLeeren_('snap');
@@ -931,11 +993,35 @@ function testLesen() {
   console.log('Beispiel: ' + JSON.stringify(Object.entries(s.done).slice(0, 3)));
 }
 
+/**
+ * Legt das Blatt „Links“ an oder ergänzt es: eine Zeile je Quest aus dem Questbuch (nur lesen), in der Reihenfolge des Kurses.
+ * Schon eingetragene Adressen bleiben erhalten. Zeilen zu Quests, die es nicht mehr gibt, bleiben unten stehen (Spalte A leer).
+ */
+function linksBlattAnlegen() {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName('Links');
+  if (!sh) sh = ss.insertSheet('Links');
+  const alt = {}, reihen = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues() : [];
+  reihen.forEach(r => { const n = String(r[1] || '').trim(); if (n) alt[n] = String(r[2] || '').trim(); });
+  const quests = leseXpRechner_().quests, da = {};
+  const neu = quests.map(q => { da[q.n] = true; return [q.ms, q.n, alt[q.n] || '']; });
+  Object.keys(alt).forEach(n => { if (!da[n] && alt[n]) neu.push(['', n, alt[n]]); });
+  sh.clear();
+  sh.getRange(1, 1, 1, 3).setValues([['Meilenstein', 'Quest (nicht ändern)', 'Adresse der Aufgabe in Mebis (https://…)']]).setFontWeight('bold');
+  if (neu.length) sh.getRange(2, 1, neu.length, 3).setValues(neu);
+  try { sh.setFrozenRows(1); sh.setColumnWidth(1, 90); sh.setColumnWidth(2, 460); sh.setColumnWidth(3, 520); } catch (err) {}
+  cacheLeeren_('links');
+  const fehlt = neu.filter(r => !r[2]).length;
+  SpreadsheetApp.getActive().toast(neu.length + ' Quests im Blatt „Links“, ' + fehlt + ' noch ohne Adresse.', 'Alte Fabrik', 8);
+}
+
 /** Menü in der Tabelle */
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Alte Fabrik')
     .addItem('Zugänge anlegen / aktualisieren', 'zugaengeAnlegen')
     .addItem('Zettel neu erstellen', 'zettelErstellen')
+    .addItem('Zettel als PDF zum Drucken', 'zettelPdfErstellen')
+    .addItem('Mebis-Links: Blatt anlegen / aktualisieren', 'linksBlattAnlegen')
     .addItem('Test: XP-Rechner lesen', 'testLesen')
     .addSeparator()
     .addItem('Datenschutz: prüfen (ändert nichts)', 'datenschutzPruefen')

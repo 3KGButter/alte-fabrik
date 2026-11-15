@@ -1147,10 +1147,11 @@ const INNER = (() => {
   function draw(ctx, room, st, t, time, dt) {
     const clock = (id, run) => { const c = CLK[id] || (CLK[id] = { t: time, busy: false }); if (run || c.busy) c.t += dt; return c.t; };
     const settle = (id, run, P, rest) => { const c = CLK[id]; if (run || c.stack === undefined) c.stack = P.stack; else P.stack = c.stack; c.busy = !run && Math.abs(P.w.x - rest) > .5; if (!run && !CLK[id].busy) P.w = { x: rest, pose: ['phone', 'stretch', 'coffee', 'idle', 'wave', 'phone'][(Math.floor(time / 9) + id.length) % 6], dir: P.w.dir || 1 }; return P; };   // Pause: Handy, strecken, Kaffee, winken   // ausgeschaltet: Arbeiter geht zu Ende, dann Pause
-    const k = skyAt(t), n = k.night, RM = ROOMS[room], wall = WALLS[room];
+    const wx = st.wx || { rain: 0, storm: 0, cloud: 0 }, cl = wx.cloud === undefined ? wx.rain : wx.cloud;   /* Wetter (v137): durch die Fenster sieht man Wolken, Regen und Blitze, das Tageslicht ist trüber */
+    const k = ART.wetK(skyAt(t), cl, wx.storm), n = k.night, RM = ROOMS[room], wall = WALLS[room];
     for (const hk in HIT) if (hk.startsWith('g_')) delete HIT[hk];   /* Gimmick-Flächen gelten nur im aktuellen Raum */
     for (const key in HIT) delete HIT[key];
-    backdrop(sc, k, FLOOR, time, t);
+    backdrop(sc, k, FLOOR, time, t); ART.wetterHimmel(sc, k, wx, FLOOR, time, .45); ART.regen(sc, wx, time, dt, n, FLOOR);   /* liegt hinter der Wand, ist also nur in den Fensteröffnungen zu sehen; Donner gedämpft */
     lc.clearRect(0, 0, W, H); const L = [], UP = [];
     lc.drawImage(wall.s.c, -1, -1);
     lc.drawImage(ART.cachedLayer('floor_' + RM.floor, H, ART.kq(k.tree, k.night), g => floor(g, k, RM.floor)), 0, 0);   /* Hallenboden aus dem Zwischenbild */
@@ -1208,11 +1209,15 @@ const INNER = (() => {
         for (let y = 3; y < 8; y++) px(0, y, y < 5 ? 1 : 2); px(1, 6, 2); px(1, 7, 2);
         if (on) { R(lc, kx, ky + 1, 1, 1, '#3e2731'); R(lc, kx - 1, ky, 1, 1, '#fff2c0'); for (const [x, y] of [[-2, 0], [-2, 1], [-2, 2], [2, 0], [2, 1], [2, 2], [-1, 3], [-1, 4], [-1, 5], [-1, 6], [-1, 7], [1, 3], [1, 4], [1, 5], [2, 6], [2, 7], [0, 8], [1, 8]]) R(lc, kx + x, ky + y, 1, 1, '#3e2731'); }
       });
-      // Auftragsbrett (groß): offene Aufträge als Zettel, erledigte mit grünem Haken
+      // Auftragsbrett (groß): offene Aufträge als Zettel, erledigte abgerissen
       const ao = blit(lc, BOARD_O, 62, 114); HIT.auftraege = { x: ao.x, y: ao.y, w: ao.s.w, h: ao.s.h, orders: 1, pad: 2 };
       const notes = st.orderNotes || [];   /* je Größe ein eigener Zettel: klein gelb, mittel weiße Karte, groß blauer Bauplan */
-      notes.forEach((nt, i) => { const spr2 = nt.s === 'klein' ? NOTE_K : nt.s === 'gross' || nt.s === 'groß' ? NOTE_G : NOTE2, o = blit(lc, spr2, ao.x + 30 + (i % 3) * 15, ao.y + 28 + Math.floor(i / 3) * 17 + (i % 2) * 2);
-        if (nt.d) CHECK(lc, o.x + Math.floor(o.s.w / 2) - 2, o.y + Math.floor(o.s.h / 2) - 1); });
+      const RISS = [2, 1, 3, 2, 0, 2, 1, 3, 1, 2, 0, 1, 3, 2, 1];   /* gezackte Risskante */
+      notes.forEach((nt, i) => { const spr2 = nt.s === 'klein' ? NOTE_K : nt.s === 'gross' || nt.s === 'groß' ? NOTE_G : NOTE2, cx = ao.x + 30 + (i % 3) * 15, cb = ao.y + 28 + Math.floor(i / 3) * 17 + (i % 2) * 2;
+        if (!nt.d) { blit(lc, spr2, cx, cb); return; }
+        /* erledigt (v132): Zettel ist abgerissen, an der Nadel hängt nur noch der gezackte Rest. Vorher ein grüner Haken, der vor allem auf dem blauen Bauplan kaum zu sehen war */
+        const x0 = Math.round(cx) - Math.floor(spr2.w / 2) - 1, y0 = Math.round(cb) - spr2.h - 1;
+        for (let c = 0; c < spr2.w + 2; c++) { const hh = 4 + RISS[(c + i * 4) % RISS.length]; lc.drawImage(spr2.c, c, 0, 1, hh, x0 + c, y0, 1, hh); if (c > 0 && c <= spr2.w) R(lc, x0 + c, y0 + hh, 1, 1, 'rgba(0,0,0,.28)'); } });
       // Ehrentafel aus Stein, von unten angestrahlt
       const to = blit(lc, TABLET, 229, FLOOR + 6); HIT.brett = { x: to.x, y: to.y, w: to.s.w, h: to.s.h, brett: 1, pad: 2 };
       const bl = st.badges || [];
@@ -1552,7 +1557,9 @@ const INNER = (() => {
       const gP = PU === null ? 0 : PU >= 142 ? ease(Math.min(1, (PU - 142) / 2)) : PU < 55.5 ? 1 : PU < 58 ? 1 - ease((PU - 55.5) / 2.5) : 0;
       const gate = Math.max(gP, intro === undefined ? 0 : intro < 5.5 ? 0 : ease(Math.min(1, (intro - 5.5) / 2.5))), gEdge = Math.round(MB - 2 - (MB - 44) * gate);   /* Inbetriebnahme: Rolltor fährt hoch */
       R(lc, 262, 30, 122, MB - 32, '#2a2f3a'); for (let y = 40; y < gEdge; y += 5) { R(lc, 266, y, 118, 1, '#4a4f5c'); R(lc, 266, y + 1, 118, 1, '#353a46'); R(lc, 266, y + 3, 118, 1, '#1f2330'); }
-      if (gate > 0) { for (let y = gEdge; y < MB - 2; y++) R(lc, 266, y, 118, 1, rgb(mix(k.top, k.bot, Math.min(1, (y - 40) / (MB - 40))))); if (n > .3) for (let i = 0; i < 14; i++) { const sx = 268 + (i * 37) % 114, sy = gEdge + 2 + (i * 23) % Math.max(1, MB - 6 - gEdge); if (sy < MB - 16) R(lc, sx, sy, 1, 1, '#fdf6e0'); }
+      if (gate > 0) { for (let y = gEdge; y < MB - 2; y++) R(lc, 266, y, 118, 1, rgb(mix(k.top, k.bot, Math.min(1, (y - 40) / (MB - 40))))); if (n > .3 && cl < .5) for (let i = 0; i < 14; i++) { const sx = 268 + (i * 37) % 114, sy = gEdge + 2 + (i * 23) % Math.max(1, MB - 6 - gEdge); if (sy < MB - 16) R(lc, sx, sy, 1, 1, '#fdf6e0'); }
+        if (cl > .01) { lc.globalAlpha = Math.min(.9, (.52 + .3 * n) * cl); R(lc, 266, gEdge, 118, MB - 2 - gEdge, rgb(mix(mix([118, 126, 140], [30, 34, 58], n), k.top, .4))); lc.globalAlpha = 1;   /* v137: auch im offenen Tor Wolkendecke und Regen */
+          lc.save(); lc.beginPath(); lc.rect(266, gEdge, 118, Math.max(0, MB - 2 - gEdge)); lc.clip(); ART.regen(lc, wx, time, 0, n, FLOOR); lc.restore(); }
         for (let x = 266; x < 384; x++) { const hh = 6 + Math.round(Math.sin(x * .09) * 3 + Math.sin(x * .23) * 2); R(lc, x, MB - 2 - hh, 1, hh, rgb(mix(k.far || k.bot, hx('#1d1826'), .45))); }
         R(lc, 266, gEdge, 118, 3, '#4a4f5c'); R(lc, 266, gEdge + 2, 118, 1, '#24182a'); SFX.hum('motor', gate < 1 ? .3 : 0, SFX.panX(322)); }
       R(lc, 262, 30, 4, MB - 32, '#3b3f4a'); R(lc, 263, 30, 1, MB - 32, '#6b6672');
@@ -1602,14 +1609,16 @@ const INNER = (() => {
         lc.save(); lc.beginPath(); lc.rect(262, Math.max(40, gEdge + 2), 122, H); lc.clip();   /* alles über dem aufgerollten Tor bleibt unsichtbar */
         lc.imageSmoothingEnabled = false; lc.drawImage(MS.c, x, y, w, h);
         if (fly.lift > 0) SFX.hum('jet', .4, SFX.panX(MX));   /* Düsen bis zum Schluss hörbar */
-        if (fly.lift > 0) for (const bx of [25, 51]) { const fx2 = Math.round(x + bx * sc2), fy2 = y + h - 2, fl = 9 + Math.floor(Math.random() * 6); R(lc, fx2 + 1, fy2, 12, fl, '#ff5a2c'); R(lc, fx2 + 2, fy2, 10, fl - 2, '#ff7a2c'); R(lc, fx2 + 4, fy2, 6, fl - 4, '#ffd56a'); R(lc, fx2 + 6, fy2, 2, Math.max(1, fl - 6), '#fffaf0'); L.push({ x: fx2 + 1, y: fy2, w: 12, h: fl, c: '#ff9a3c', fire: true }); if (Math.random() < .5 && fy2 + fl > Math.max(40, gEdge + 2) + 4) puff(fx2 + 7, fy2 + fl, 'smoke'); }   /* Rauch kommt aus den Flammen */
+        if (fly.lift > 0) for (const bx of [27, 53]) { const fx2 = Math.round(x + bx * sc2) - 1, fy2 = y + h - 2, fl = 15 + Math.floor(Math.random() * 7), top = Math.max(40, gEdge + 2); ART.flame(lc, fx2 + 1, fy2, 13, fl);   /* Stiefel liegen im Bild bei 23–43 und 49–69: Flamme 13 breit genau darunter (v132) */
+          const ly = Math.max(fy2, top), lh = Math.min(fy2 + Math.round(fl * .6), H) - ly; if (lh > 0) L.push({ x: fx2 + 3, y: ly, w: 9, h: lh, c: '#ff9a3c', fire: true, soft: true });   /* Schein nur dort, wo die Flamme unter dem aufgerollten Tor zu sehen ist (v131: leuchtete vorher vor dem Tor) */
+          if (Math.random() < .5 && fy2 + fl > top + 4) puff(fx2 + 7, fy2 + fl, 'smoke'); }   /* Rauch kommt aus den Flammen */
         lc.restore(); }
       else if (false) { const w = 0, h = 0, x = 0, y = 0;
         lc.save();
         for (const bx of [29, 54]) { const fx2 = Math.round(x + bx * fly.s), fy2 = y + h, fw = Math.max(2, Math.round(9 * fly.s)), fl = Math.max(2, Math.round((3 + Math.random() * 4) * fly.s)); R(lc, fx2, fy2, fw, fl, '#ff7a2c'); R(lc, fx2 + 1, fy2, Math.max(1, fw - 2), Math.max(1, fl - 1), '#ffd56a'); L.push({ x: fx2, y: fy2, w: fw, h: fl, c: '#ff9a3c', fire: true, a: fly.a }); }
         lc.restore(); }
       else { mo = blit(lc, MS, MX, MB - lift); HIT.mecha = { x: mo.x, y: mo.y, w: MS.w, h: MS.h, mecha: 1 }; }
-      if (mo && (lift > 0 || (A && A.k === 'abheben' && A.t < 3))) for (const fx2 of [mo.x + 1 + 25, mo.x + 1 + 51]) { const fy2 = mo.y + 1 + 98, fl = 9 + Math.floor(Math.random() * 6); R(lc, fx2, fy2, 14, 1, '#3e2731'); R(lc, fx2 + 1, fy2 + 1, 12, fl, '#ff5a2c'); R(lc, fx2 + 2, fy2 + 1, 10, fl - 2, '#ff7a2c'); R(lc, fx2 + 4, fy2 + 1, 6, fl - 4, '#ffd56a'); R(lc, fx2 + 6, fy2 + 1, 2, Math.max(1, fl - 6), '#fffaf0'); R(lc, fx2 + 3, fy2 + fl, 8, 2, '#ff7a2c'); L.push({ x: fx2 + 1, y: fy2 + 1, w: 12, h: fl, c: '#ff9a3c', fire: true }); if (Math.random() < .6) puff(fx2 + 7, MB - 2, 'smoke'); }   /* große Düsenflammen unter beiden Stiefeln */   /* Düsen unter den Stiefelsohlen */   /* Düsenflammen unter den Füßen */
+      if (mo && (lift > 0 || (A && A.k === 'abheben' && A.t < 3))) for (const fx2 of [mo.x + 1 + 25, mo.x + 1 + 51]) { const fy2 = mo.y + 1 + 98, fl = 15 + Math.floor(Math.random() * 7); R(lc, fx2 - 1, fy2, 15, 1, '#3e2731'); ART.flame(lc, fx2, fy2 + 1, 13, fl); L.push({ x: fx2 + 2, y: fy2 + 1, w: 9, h: Math.round(fl * .6), c: '#ff9a3c', fire: true, soft: true });   /* mittig unter den Stiefeln (v132) */ if (Math.random() < .6) puff(fx2 + 7, MB - 2, 'smoke'); }   /* spitz auslaufende Düsenflammen unter beiden Stiefeln */
       if (show !== null && mo) { const SC = ['#ff5a4a', '#ffd56a', '#9cff7a', '#7fd4ff', '#d07aff', '#ffffff'], c = SC[show % SC.length], hx2 = mo.x + 1 + 45 + pose.head, ey = mo.y + 1 + 28 + pose.bob, cy2 = mo.y + 1 + 46 + pose.bob;   /* Lichtshow: Augen und Kern wechseln die Farbe, Strahlen fegen durch die Halle */
         for (const ex of [hx2 - 4, hx2 + 3]) { R(lc, ex, ey, 2, 1, c); L.push({ x: ex, y: ey, w: 2, h: 1, c, fire: true }); }
         R(lc, mo.x + 44, cy2 - 1, 3, 3, c); L.push({ x: mo.x + 43, y: cy2 - 2, w: 5, h: 5, c, fire: true });
@@ -1684,7 +1693,7 @@ const INNER = (() => {
     for (const u of UP) upCone(sc, u, n, time);
     for (const l of L) if (l.cone && n > .15) softCone(sc, l, n, time);
     ART.glowPass(sc, L, l => Math.max(.35, n, DIM) * (l.a === undefined ? 1 : l.a)); ART.OCC.list.length = 0;
-    if (n < .4) { sc.globalAlpha = .06 * (1 - n * 2); for (const w of wall.wins) for (let i = 0; i < 50; i++) R(sc, w.x + 6 + i * .5, w.y + w.h + i, w.w - 8, 1, '#fff3c0'); sc.globalAlpha = 1; }
+    if (n < .4 && cl < .95) { sc.globalAlpha = .06 * (1 - n * 2) * (1 - cl);   /* bei bedecktem Himmel keine Sonnenstreifen */ for (const w of wall.wins) for (let i = 0; i < 50; i++) R(sc, w.x + 6 + i * .5, w.y + w.h + i, w.w - 8, 1, '#fff3c0'); sc.globalAlpha = 1; }
     ctx.drawImage(scene, 0, 0);
     if (st.showSlots) { OVER.dim(ctx, W, H); FREE.forEach((f, i) => f.wall ? OVER.frame(ctx, f.x, f.y, f.w, f.h, time, i) : OVER.spot(ctx, f.x, f.b, f.w, time, i)); }
     if (st.sel && HIT[st.sel]) { const h = HIT[st.sel], q = h.pad || 0; OVER.box(ctx, h.x - 2 - q, h.y - 2 - q, h.x + h.w + 1 + q, h.y + h.h + 1 + q, Math.sin(time * 5) > -.3 ? '#ffffff' : '#ffe08a'); }

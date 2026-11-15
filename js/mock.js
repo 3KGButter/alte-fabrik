@@ -21,17 +21,23 @@ window.MockServer = (() => {
     Q('MS4', 0, 1140, 'Darstellung von Schnittansichten im Teilschnitt - Flansch'), Q('MS4', 0, 830, 'Darstellung von Schnittansichten im Teilschnitt - Spannplatte'),
     Q('MS4', 0, 230, 'Regeln: Gewindedarstellung'), Q('MS4', 0, 980, 'Darstellung von Gewinden - Schraubkloben'), Q('MS4', 0, 1040, 'Darstellung von Gewinden - Gabelkopf'),
     Q('MS5', 1, 2500, '1. Arbeitsprobe')
-  ].map(q => Object.assign(q, { hq: !!q.hq }));
+  ].map(q => Object.assign(q, { hq: !!q.hq, url: 'https://lernplattform.mebis.bycs.de/' }));   /* Vorschau: Beispiel-Adresse, echte Adressen kommen aus dem Blatt „Links“ */
 
   // Vorschau-Fortschritt, umschaltbar mit ?stand=frueh | mitte | weit | alles
   let STAND = 'mitte';
   try { STAND = new URLSearchParams(location.search).get('stand') || localStorage.getItem('altefabrik_mock_stand') || 'mitte'; } catch (e) {}
-  const done = (q, i) => {
+  /* Wunsch-Fortschritt je Stand; danach sorgt kette() dafür, dass er zum Kurs passt:
+     Hauptquests nur der Reihe nach, Nebenquests nur hinter einer erledigten Hauptquest (MS5 = Arbeitsprobe zählt nicht zur Kette). */
+  const MS3_START = QUESTS.findIndex(q => q.ms === 'MS3');
+  const wunsch = (q, i) => {
     if (STAND === 'alles') return true;
     if (STAND === 'frueh') return q.ms === 'MS1' && i < 2;
     if (STAND === 'weit') return q.ms !== 'MS4' || i % 2 === 0;
-    return q.ms === 'MS1' || q.ms === 'MS2' || (q.ms === 'MS3' && i % 3 === 0);
+    return q.ms === 'MS1' || q.ms === 'MS2' || (q.ms === 'MS3' && i - MS3_START < 9 && (q.hq || i % 2 === 0));
   };
+  const kette = () => { let k = true; return QUESTS.map((q, i) => { if (q.ms === 'MS5') return wunsch(q, i); const d = wunsch(q, i) && k; if (q.hq) k = k && d; return d; }); };
+  let DONE = null, doneStand = null;   /* neu berechnen, wenn der Stand umgeschaltet wird */
+  const done = (q, i) => { if (doneStand !== STAND) { DONE = kette(); doneStand = STAND; } return DONE[i]; };
   const profile = { xp: 9950, level: 12, stufe: 'Zeichenbrettbrecher', klasse: 'Vorschau' };
   const KEY = 'altefabrik_mock_state3';
   let offset = 0; // Zeitsprung für Produktionstest
@@ -60,7 +66,7 @@ window.MockServer = (() => {
       const NAMES = ['Zahnradprofi', 'Blechbieger', 'Fraesfuchs', 'Drehwurm', 'Gewindeguru', 'Kantenkoenig', 'Spaenesammler', 'Nutenmeister', 'Schraubstock', 'Messschieber', 'Pixelpresse', 'Kurbelkind', 'Stahlstern', 'Funkenflug', 'Hebelheld', 'Lochblech', 'Passfeder', 'Bohrfutter', 'Werkbankwolf', 'Toleranztiger', 'Kugellager', 'Senkkopf'];
       const mk = (kl, me) => { const l = NAMES.map((n, i) => ({ tag: kl === '11T1' ? n : n + kl.slice(-1), xp: 5200 - i * 190 - (i % 3) * 20 })); if (me) l.splice(13, 0, { tag: me, xp: 2800 }); return l.sort((a, b) => b.xp - a.xp).map((e, i) => Object.assign(e, { p: i + 1, level: Math.max(1, Math.floor(e.xp / 400)), stufe: ['Bleistiftspitzer', 'Linienverwackler', 'Geodreieckamateur', 'Maßstabsmeister'][Math.min(3, Math.floor(e.xp / 1500))] })); };
       if (String(req.tag).toLowerCase() === 'demo') { const kl = ['11T1', '11T2', '11T3', '11T4'].indexOf(req.klasse) >= 0 ? req.klasse : '11T1'; return { ok: true, lehrer: true, klassen: ['11T1', '11T2', '11T3', '11T4'], klasse: kl, liste: mk(kl) }; }
-      const all = mk('11T1', req.tag); return { ok: true, klasse: '11T1', liste: all.slice(0, 10), ich: all.find(e => e.tag === req.tag), gesamt: all.length };
+      const all = mk('11T1', req.tag); return { ok: true, klasse: '11T1', liste: all.slice(0, 5), ich: all.find(e => e.tag === req.tag), gesamt: all.length };
     }
     if (req.action === 'mockStamps') { state.stamps = (state.stamps || 0) + 10; save(state); return Object.assign(answer(state, c), { msg: '+10 Stempel' }); }
     if (req.action === 'mockRich') { state.gears = (state.gears || 0) + 500; save(state); return Object.assign(answer(state, c), { msg: '+500 Zahnräder' }); }

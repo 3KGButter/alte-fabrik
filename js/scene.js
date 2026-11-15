@@ -47,6 +47,8 @@ const SCENE = (() => {
   };
   function LAMPPOST_ROWS() { return ['...h...', '..ghg..', '.gghgg.', '.gWWWg.', '.gWGWg.', '.gWWWg.', '..ghg..', '...h...', '..hjh..', '...hg..', '...jg..', '...hg..', '...jg..', '...hg..', '...jg..', '...hg..', '..ghjg.', '...hg..', '...jg..', '..ghhg.', '.gghhgg', '.ggggg.']; }
   const DS = {}; Object.keys(DECO).forEach(k => DS[k] = ART.buildSprite(DECO[k]));
+  /* Fahne im Wind (v137): Mast und Tuch getrennt; bei Regen weht das Tuch nach links (wie die Tropfen fallen), bei Gewitter schwankt auch der Mast */
+  const FPOLE = ART.buildSprite(DECO.fahne.map(r => r.replace(/[PQE]/g, '.'))), FLAGL = ART.buildSprite(DECO.fahne.slice(0, 5).map(r => r.slice(1).split('').reverse().join('')));
   DS.kirschbaum = SPR.cherryTree;
   const PETALS = [], CATST = {}, PINE_T = { c: mk(SPR.pineM.c.width, SPR.pineM.c.height), k: '' }; ART.onRestore(() => { PINE_T.k = ''; });   // getönte Tanne nur neu berechnen, wenn sich das Licht ändert   // fallende Kirschblüten
   // Vogel am Vogelhaus: fliegt ab und zu an, pickt auf dem Dach, fliegt weiter
@@ -173,12 +175,6 @@ const SCENE = (() => {
   const HIT = {}; // Klickflächen
   const VERGE_B = 157;
 
-  // Kaisockel unter den Gebäuden am Wasser: Natursteinquader, Moos an der Wasserlinie, Poller
-  function kai(g, cx, w, k) { // niedriger Steinsockel, die Tür öffnet sich zur Promenade
-    const x0 = Math.round(cx - w / 2) - 2, ww = w + 4, y0 = ART.PROM - 2;
-    R(g, x0, y0, ww, 3, '#8f8a92'); R(g, x0, y0, ww, 1, '#b5afb0'); for (let x = x0 + 3; x < x0 + ww; x += 6) R(g, x, y0 + 1, 1, 2, '#6b6672');
-    g.globalAlpha = .25; R(g, x0, ART.PROM + 1, ww, 2, '#3e2731'); g.globalAlpha = 1;
-  }
   // Schilf an der Kaimauer und Seerosen (wiegen sich leicht)
   const REEDS = []; [[2, 22], [52, 86], [150, 176], [206, 228], [372, 384]].forEach(([a, b], k) => { for (let x = a; x < b; x += 2 + ((x * 7 + k) % 3)) REEDS.push({ x, h: 3 + ((x * 13) % 4), cat: (x * 5) % 9 < 2, p: x * .37 }); });
   const LILY = [{ x: 14, y: WATER + 10, n: 3, p: 1 }, { x: 370, y: WATER + 12, n: 3, p: 4 }, { x: 262, y: WATER + 8, n: 2, fl: true, p: 2.5 }];   // zwei Dreiergruppen am Rand, eine Zweiergruppe mit Blüte am Ufer
@@ -238,13 +234,17 @@ const SCENE = (() => {
   }
   let SL = null, MEI = null, KS = {}; const YM = {}, KR = {}, NB = {}, DK = {}, VG = {}, RB = {}, FK = {}, OW = { p: 0 }, PC = mk(W, H), PG = PC.getContext('2d'); const FRONTS = [], CONE = mk(W, H), CG = CONE.getContext('2d');   /* Lichtkegel getrennt zeichnen, damit Gebäude davor ihn verdecken */
   // state: { b: {id: 'ruin'|'ok'|'locked'}, golem, running: {id: n}, truck: Anzahl Kisten, owned, placed, marks }
+  /* Regen (v134): feste Tropfenbahnen, Ringe auf dem Wasser, Spritzer auf den Wegen */
+  const RIP = [], CALM = ART.CALM;   /* Regen (v134): Ringe auf dem Wasser, Spritzer auf den Wegen. Tropfen und Himmel zeichnet art.js */
   function yard(ctx, st, t, time, dt) {
-    const k = skyAt(t), n = k.night, work = n < .55, lunch = t > .45 && t < .52 && n < .2, nightW = n > .6;   /* Tagesablauf draußen: Schicht, Mittagspause, Nachtruhe */
-    const { sunPos, moonPos } = backdrop(sc, k, G + 2, time, t);
+    const wx = st.wx || { rain: 0, storm: 0 }, rn = wx.rain, stm = wx.storm, cl = wx.cloud === undefined ? rn : wx.cloud, wet = cl > .75, gew = stm > .25;   /* cl: Wolkendecke (zieht vor dem Regen auf); wet: Himmel fast zu, alle gehen ins Trockene; gew: Gewitter */
+    const k = ART.wetK(skyAt(t), cl, stm), n = k.night, work = n < .55, workC = work && !gew, lunch = t > .45 && t < .52 && n < .2 && !wet, nightW = n > .6;   /* Tagesablauf draußen: Schicht, Mittagspause, Nachtruhe */
+    const bd = backdrop(sc, k, G + 2, time, t), sunPos = cl > .4 ? null : bd.sunPos, moonPos = cl > .4 ? null : bd.moonPos;   /* bei Regen kein Glitzern von Sonne und Mond auf dem Wasser */
+    const flash = ART.wetterHimmel(sc, k, wx, G + 2, time);   /* Wolkendecke, Regenwolken, Blitz und Donner (gemeinsam mit den Hallenfenstern, art.js) */
     sc.drawImage(ART.cachedLayer('ground', H, ART.kq(k.grass, k.bot, k.tree, k.water, k.shore, k.night, k.tint), g => ground(g, k, g2 => { const tk = k.tint.map(v => Math.round(v * 20)).join(','); if (PINE_T.k !== tk) { PINE_T.k = tk; const pg = PINE_T.c.getContext('2d'); pg.clearRect(0, 0, PINE_T.c.width, PINE_T.c.height); pg.drawImage(SPR.pineM.c, 0, 0); tint(pg, PINE_T.c.width, PINE_T.c.height, k.tint); } const pc = PINE_T.c; blit(g2, Object.assign({}, SPR.pineM, { c: pc }), 320, hillH[320] - 2); })), 0, 0);   // Tanne hinter Treppe und Geländer, tiefer gesetzt (kurzer Stamm)   /* Boden aus dem Zwischenbild */
     {   // Geräusche im Werkshof: Vögel am Tag, Grillen in der Nacht, leises Wasserplätschern
-      const day = t > .22 && t < .8 && n < .3; if (day && Math.random() < dt * .28) SFX.play('chirp', { pan: Math.random() * 1.4 - .7, vol: .8, gap: .5 });
-      SFX.hum('water', .07); if (n > .5) { SFX.hum('wind', (n - .5) * .5); SFX.hum('crickets', (n - .5) * .17); } }   /* Fluss leise; nachts leiser Wind und ein sanft schwellender Grillenteppich */
+      const day = t > .22 && t < .8 && n < .3 && cl < .3; if (day && Math.random() < dt * .28) SFX.play('chirp', { pan: Math.random() * 1.4 - .7, vol: .8, gap: .5 });
+      SFX.hum('water', .07); if (n > .5) SFX.hum('crickets', (n - .5) * .17 * (1 - rn)); }   /* Fluss leise; nachts ein sanft schwellender Grillenteppich (bei Regen still). Bei Regen zwitschert nichts */
     for (const [i, tw] of [[0, .28], [1, .45], [2, .70]]) { const on = t > tw && t < tw + .004; SFX.edge('shift' + i, on, 'shift', { vol: .9 }); if (on && HIT.maschinenhalle && st.b.maschinenhalle === 'ok' && Math.random() < .6) puff(HIT.maschinenhalle.x + 8, HIT.maschinenhalle.y + 2, 'smoke'); }   /* Werkspfeife mit Dampfwolke: Schichtbeginn, Mittag, Feierabend */
     lc.clearRect(0, 0, W, H); const L = [], D = [], FREE = [], FOG = []; FRONTS.length = 0;   // D: Dinge im Hof, nach Tiefe (Unterkante) sortiert
     const add = (y, f) => D.push({ y, f });
@@ -255,9 +255,9 @@ const SCENE = (() => {
     const fx = (id, o, s2) => { HIT['fx_' + id] = { x: o.x, y: o.y, w: (s2 || o.s).w, h: (s2 || o.s).h, fixed: id }; };
     if (st.owned.kran) {   // Kran steht hinten, die Laubbäume davor
       const o = blit(lc, CRANE, POS.kran.x, G + 1); HIT.fx_kran = { x: o.x + 18, y: o.y, w: 12, h: o.s.h, fixed: 'kran' };   // Laufkatze fährt den Ausleger entlang, Haken mit Stahlträger hebt und senkt sich
-      if (work) KR.t = time; const ct = KR.t || 0;   /* nachts steht der Kran still, Haken oben */
-      const q = (Math.sin(ct * .12) + 1) / 2, kx = Math.round(o.x + 30 + q * 26), hyT = (Math.sin(ct * .21) + 1) * 8 * (work ? 1 : 0); KR.h = KR.h === undefined ? hyT : KR.h + Math.max(-dt * 3, Math.min(dt * 3, hyT - KR.h)); const hy = Math.round(o.y + 22 + KR.h);   /* Haken fährt langsam hoch statt zu springen */
-      if (work) SFX.hum('motor', .12 * Math.max(Math.abs(Math.cos(time * .12)), Math.abs(Math.cos(time * .21))), SFX.panX(kx));
+      if (workC) KR.t = time; const ct = KR.t || 0;   /* bei Gewitter steht der Kran wie nachts */   /* nachts steht der Kran still, Haken oben */
+      const q = (Math.sin(ct * .12) + 1) / 2, kx = Math.round(o.x + 30 + q * 26), hyT = (Math.sin(ct * .21) + 1) * 8 * (workC ? 1 : 0); KR.h = KR.h === undefined ? hyT : KR.h + Math.max(-dt * 3, Math.min(dt * 3, hyT - KR.h)); const hy = Math.round(o.y + 22 + KR.h);   /* Haken fährt langsam hoch statt zu springen */
+      if (workC) SFX.hum('motor', .12 * Math.max(Math.abs(Math.cos(time * .12)), Math.abs(Math.cos(time * .21))), SFX.panX(kx));
       if (n > .3 && Math.sin(time * 2.4) > .2) { R(lc, o.x + 23, o.y, 2, 1, '#ff5a4a'); L.push({ x: o.x + 23, y: o.y, w: 2, h: 1, c: '#ff5a4a', fire: true }); }   /* Warnlicht oben auf dem Kran */   /* Kranmotor surrt beim Fahren */
       R(lc, kx - 2, o.y + 11, 5, 2, '#3b3f4a'); R(lc, kx - 2, o.y + 11, 5, 1, '#8f8a92'); R(lc, kx, o.y + 13, 1, hy - o.y - 13, '#3e2731');
       R(lc, kx - 1, hy, 3, 2, '#e8a83a'); R(lc, kx, hy + 2, 1, 2, '#4a4652'); R(lc, kx - 5, hy + 4, 11, 2, '#b8474b'); R(lc, kx - 5, hy + 4, 11, 1, '#e0705a'); }
@@ -292,7 +292,7 @@ const SCENE = (() => {
     };
     for (const id of order) {
       const p = POS[id]; let s = st.b[id] === 'ok' ? BUILD[id].ok : BUILD[id].ruin;
-      if (p.front) add(p.b, () => { kai(lc, p.x, s.w, k); drawB(id, p, s); });
+      if (p.front) add(p.b, () => { drawB(id, p, s); });   /* v137: der graue Steinsockel unter den Gebäuden am Wasser ist entfernt */
       else drawB(id, p, s);
     }
     if (st.golem) {
@@ -386,9 +386,16 @@ const SCENE = (() => {
           SFX.once('ya' + A.id, A.k === 'abheben' ? 'mjet' : A.k === 'dampf' ? 'msteam' : 'mservo', { pan: SFX.panX(mx), vol: .6 }); if (A.k === 'dampf' && Math.random() < .4) puff(mx + (Math.random() - .5) * 20, mb - 34, 'smoke'); }
         const S2 = side && !jet ? SPR.mechaSideFrame({ step: pose.step }, M.paint) : SPR.mechaYardFrame(pose, M.paint), X0 = Math.round(mx), B0 = Math.round(mb) - lift, FL = side > 0;
         if (jet) SFX.hum('jet', .3, SFX.panX(mx)); SFX.hum('reactor', .08, SFX.panX(mx));
+        { const want = rn > .35 && !jet && !lift && birdsOn === null && (time % 34) < 14;   /* Regen (v137): ab und zu fährt er einen kleinen Schirm aus dem Helm */
+          YM.umb = Math.max(0, Math.min(1, (YM.umb || 0) + (want ? 1 : -1) * (dt || 0) / .6)); SFX.edge('ymUmb', want, 'mservo', { pan: SFX.panX(mx), vol: .35 }); }
         add(dep !== null ? dep : Math.round(mb), () => { ART.OCC.on = true; const o = blit(lc, S2, X0, B0, null, FL); ART.OCC.on = false; HIT.ymecha = { x: o.x, y: o.y, w: S2.w, h: S2.h, ymecha: 1 };
           const pulse = .6 + .4 * Math.sin(time * 3), hidden = (x, y) => ['blechwerkstatt', 'prueflabor'].some(id => { const h = HIT[id]; return h && x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h; });   /* Gebäude vorn verdecken sein Leuchten */
           S2.fire.forEach(f => hidden(o.x + f.x, o.y + f.y) || L.push({ x: FL ? o.x + S2.w + 2 - f.x - f.w : o.x + f.x - 1, y: o.y + f.y - 1, w: f.w, h: f.h, c: f.h > 1 ? '#ff7a2c' : '#ffd56a', fire: true, a: pulse }));
+          if (YM.umb > .02) { const tp = S2._top || (S2._top = (() => { for (let r = 0; r < S2.rows.length; r++) { const m = /[^., ]/.exec(S2.rows[r]); if (m) { const last = S2.rows[r].replace(/[., ]+$/, '').length - 1; return { x: Math.floor((m.index + last) / 2), y: r }; } } return { x: S2.w >> 1, y: 0 }; })());
+            const q = YM.umb, ux = (FL ? o.x + S2.w - 1 - tp.x : o.x + tp.x) + (side && !jet ? 0 : 0), uy = o.y + tp.y, pl = Math.round(4 * Math.min(1, q / .4)), e = Math.max(0, (q - .4) / .6), hw = 1 + Math.round(4 * e), ty = uy - pl - 1;
+            R(lc, ux, uy - pl, 1, pl, '#9aa0aa');   /* Stange */
+            if (q > .4) { R(lc, ux - Math.max(0, hw - 2), ty - 2, Math.max(0, hw - 2) * 2 + 1, 1, '#ee7b63'); R(lc, ux - hw + 1, ty - 1, hw * 2 - 1, 1, '#d0483f'); R(lc, ux - hw, ty, hw * 2 + 1, 1, '#d0483f'); for (let i = -hw; i <= hw; i += 2) R(lc, ux + i, ty + 1, 1, 1, '#8f2c34'); R(lc, ux, ty - 3, 1, 1, '#3e2731'); }   /* Schirm: rot mit hellem Scheitel, gezackter Rand */
+            else R(lc, ux, uy - pl - 1, 1, 1, '#d0483f'); }
           if (jet) for (const fx2 of [o.x + 10, o.x + 20]) { const fy2 = o.y + S2.h + 1, fl = 2 + Math.floor(Math.random() * 3); R(lc, fx2, fy2, 5, fl, '#ff7a2c'); R(lc, fx2 + 1, fy2, 3, fl - 1, '#ffd56a'); if (!hidden(fx2 + 2, fy2)) L.push({ x: fx2, y: fy2, w: 5, h: fl, c: '#ff9a3c', fire: true }); if (Math.random() < .4) { puff(fx2 + 3, fy2 + 3, 'smoke'); if (dep !== null) parts[parts.length - 1].z = dep; } }   /* Düsen unter den Stiefeln; der Rauch merkt sich die Tiefe des Mechas */
           if (beam && n > .3 && !jet) { const ex = side && !jet ? (FL ? o.x + S2.w - 8 : o.x + 9) : o.x + 1 + 16 + pose.head, ey = side && !jet ? o.y + 8 : o.y + 1 + 8 + pose.bob; SL = { x: ex, y: ey, tx: beam.tx, ty: beam.ty, a: Math.min(1, (n - .3) / .2) }; }   /* Gebäude vorn verdecken den Kegel */
           if (birdsOn !== null) { const w = birdsOn, hx = o.x + 1 + 27, hy = o.y + 1 + 10 + pose.bob - 2, hd = o.x + 1 + 16 + pose.head, hdy = o.y + 1 + pose.bob;   /* zwei Vögel landen auf der Faust, einer auf dem Kopf */
@@ -402,7 +409,7 @@ const SCENE = (() => {
     add(H + 1, () => fxStep(lc, dt));
     if (VG.t !== undefined) { VG.t += dt; const q = VG.t / 2.6; if (q >= 1) delete VG.t; else { const out = q < .5 ? q * 2 : (1 - q) * 2, bx = VG.x + Math.sin(q * Math.PI * 2) * 18 * out, by = VG.y - 4 - out * 16;   /* Vogel fliegt eine Runde und kommt zurück */
       add(H + 2, () => bird(lc, Math.round(bx), Math.round(by), Math.floor(time * 10) % 2 === 0, false, Math.cos(q * Math.PI * 2) > 0 ? -1 : 1)); } }
-    delete HIT.owl; { const want = n > .6 ? 1 : 0; if (OW.p !== want) { if (OW.p === 0 || OW.p === 1) SFX.play('flap', { pan: SFX.panX(141), vol: .8 }); OW.p = Math.max(0, Math.min(1, OW.p + Math.sign(want - OW.p) * dt / 10)); }   /* gemächlicher Flug, etwa 10 Sekunden */   /* Eule fliegt abends an und morgens weg */
+    delete HIT.owl; { const want = n > .6 && !gew ? 1 : 0;   /* bei Gewitter fliegt die Eule weg */ if (OW.p !== want) { if (OW.p === 0 || OW.p === 1) SFX.play('flap', { pan: SFX.panX(141), vol: .8 }); OW.p = Math.max(0, Math.min(1, OW.p + Math.sign(want - OW.p) * dt / 10)); }   /* gemächlicher Flug, etwa 10 Sekunden */   /* Eule fliegt abends an und morgens weg */
       if (OW.p > 0) { const tr = SPR.cozyTree2, px0 = 141 + 2, py0 = G + 1 - tr.h + 7, q = OW.p, e = 1 - (1 - q) * (1 - q), r = 1 - e, ox = Math.round(px0 - r * 170 + Math.sin(r * 5.5) * 14 * r), oy = Math.round(py0 - r * 34 - Math.sin(r * Math.PI) * 10 + Math.sin(r * 14) * 3 * r), fly = q < 1, glide = Math.sin(r * 14) > .3, blink = !fly && (time % 6) < .15, fl = glide ? 1 : Math.floor(time * 5) % 2;   /* weiter Bogen mit Wellen: Flügelschläge, dazwischen Gleiten */
         R(lc, ox - 2, oy, 5, 6, '#5c3a2e'); R(lc, ox - 1, oy + 3, 3, 3, '#a5703f'); R(lc, ox, oy + 2, 1, 1, '#e8a83a');
         if (fly) { const ph = glide ? 1 : Math.floor(time * 7) % 4, dy = [-2, 0, 2, 0][ph];   /* Flügel: oben, Mitte, unten, Mitte; beim Gleiten ausgebreitet */
@@ -417,11 +424,14 @@ const SCENE = (() => {
     // gekaufte Gegenstände
     SLOTS.forEach((sl, i) => {
       const it = st.placed && st.placed[i]; HIT['slot' + i] = { x: sl.x - 7, y: sl.b - 14, w: 15, h: 15, slot: i, item: it };
-      if (it && DS[it]) add(sl.b, () => { const o = blit(lc, DS[it], sl.x, sl.b); if (it === 'laterne') L.push({ x: o.x + 2, y: o.y + 3, w: 3, h: 3, c: '#ffd56a', pool: { x: sl.x, y: sl.b + 1 } }); if (it === 'brunnen') { if (Math.random() < .4) puff(o.x + 9, o.y + 1, 'drop'); SFX.hum('fountain', .05, SFX.panX(sl.x));   /* leise im Hintergrund */ } if (it === 'lichter') DS[it].fire.forEach(f => L.push({ x: o.x + f.x - 1, y: o.y + f.y - 1, w: 1, h: 1, c: '#ffd56a', a: .3 + .7 * n }));
+      const fahneWind = (cx, b) => { const x0 = Math.round(cx) - 5, y0 = Math.round(b) - 20, sw = (-.9 + Math.sin(time * 2.1) * .8 + Math.sin(time * 5.3) * .4) * stm * 1.5, off = r => Math.round(sw * Math.pow((21 - r) / 21, 2)), fx = x0 + off(1) - 7;
+        for (let c = 0; c < 9; c++) { const dist = 8 - c, dy = Math.round(Math.sin(time * (7 + 5 * stm) - dist * .9) * (.6 + stm) * dist / 8); lc.drawImage(FLAGL.c, c, 0, 1, 7, fx + c, y0 + dy, 1, 7); }
+        for (let r = 0; r < 21; r++) lc.drawImage(FPOLE.c, 0, r, 10, 1, x0 + off(r), y0 + r, 10, 1); return { x: x0 + 1, y: y0 + 1 }; };
+      if (it && DS[it]) add(sl.b, () => { const o = it === 'fahne' && rn > .3 ? fahneWind(sl.x, sl.b) : blit(lc, DS[it], sl.x, sl.b); if (it === 'laterne') L.push({ x: o.x + 2, y: o.y + 3, w: 3, h: 3, c: '#ffd56a', pool: { x: sl.x, y: sl.b + 1 } }); if (it === 'brunnen') { if (Math.random() < .4) puff(o.x + 9, o.y + 1, 'drop'); SFX.hum('fountain', .05, SFX.panX(sl.x));   /* leise im Hintergrund */ } if (it === 'lichter') DS[it].fire.forEach(f => L.push({ x: o.x + f.x - 1, y: o.y + f.y - 1, w: 1, h: 1, c: '#ffd56a', a: .3 + .7 * n }));
           if (it === 'kirschbaum') { if (Math.random() < dt * .7 && PETALS.length < 12) PETALS.push({ x: o.x + 3 + Math.random() * (o.s.w - 6), y: o.y + 3 + Math.random() * 12, g: sl.b - Math.random() * 3, p: Math.random() * 6, life: 0 });
             for (const q of PETALS) { if (q.y < q.g) { q.y += dt * 5; q.x += Math.sin(time * 2 + q.p) * dt * 4 + dt * 1.5; } else q.life += dt; lc.globalAlpha = Math.max(0, 1 - q.life / 3) * (1 - n * .5); R(lc, Math.round(q.x), Math.round(q.y), 1, 1, (Math.floor(time * 3 + q.p) % 2) ? '#f2a8c0' : '#fffaf0'); }
             lc.globalAlpha = 1; for (let j = PETALS.length - 1; j >= 0; j--) if (PETALS[j].life > 3) PETALS.splice(j, 1); }
-          if (it === 'vogelhaus' && n < .5) { const P = 40, u = (time + i * 13) % P, dir = i % 2 ? -1 : 1, px = o.x + 3, py = o.y - 2;
+          if (it === 'vogelhaus' && n < .5 && !wet) { const P = 40, u = (time + i * 13) % P, dir = i % 2 ? -1 : 1, px = o.x + 3, py = o.y - 2;
             if (u < 3) { const q = u / 3, e = 1 - (1 - q) * (1 - q); bird(lc, Math.round(px - dir * 50 * (1 - e)), Math.round(py - 22 * (1 - e) + Math.sin(q * Math.PI) * -4), Math.floor(time * 10) % 2 === 0, false, -dir); }
             else if (u < 11) { const hop = Math.floor((u - 3) / 2) % 2, pk = Math.floor(u * 3) % 4 === 0; bird(lc, px + (hop ? 1 : -1), py, null, pk, Math.floor((u - 3) / 4) % 2 ? 1 : -1); }
             else if (u < 14) { const q = (u - 11) / 3; bird(lc, Math.round(px + dir * 60 * q * q), Math.round(py - 30 * q), Math.floor(time * 10) % 2 === 0, false, -dir); } } });
@@ -440,26 +450,27 @@ const SCENE = (() => {
     const spots = [{ x: 46, act: 'pick', face: -1 }, { x: 149, act: 'sit', face: 1 }]; let nW = 0;
     order.forEach(id => { if (id === 'tor' || st.b[id] !== 'ok' || id === 'kraftwerk') return; const p = POS[id], hw = p.front ? BUILD[id].ok.w / 2 + 4 : 0;
       if (p.front) spots.push({ x: p.x - hw, act: 'idle', face: 1 }, { x: p.x + hw, act: 'drop', face: -1 }); else spots.push({ x: p.x - 6, act: 'idle', face: 1 }, { x: p.x + 4, act: 'drop', face: -1 }); nW += Math.min(2, st.running[id] || 0); });
-    const nightOnly = (c, keep) => { const c0 = keep(c); c0.spots = c.spots; c0.x0 = c.x0; c0.x1 = c.x1; c.forEach((a, i) => { if (c0.indexOf(a) >= 0) return; const out = -14 - i * 8; if (!isFinite(a.x)) a.x = out; if (!isFinite(a.dist)) a.dist = 0; if (a.x > out) { const sp = 4.2 * (dt || 0);   /* dt kann im ersten Bild fehlen */ a.x = Math.max(out, a.x - sp); a.dist += sp; a.dir = -1; a.st = 'walk'; a.box = false; } else { a.st = 'act'; a.act = 'idle'; a.face = 1; } a.t = 1.5 + i * 2.5; a.tt = a.t; }); return c0; };   /* Feierabend: die anderen gehen nach links hinaus; morgens kommen sie herein */   /* nachts sind die anderen weg (links vor dem Tor); morgens kommen sie herein */
-    if (spots.length > 1) { const nt = nightW && st.fw === undefined, sp2 = nt ? spots.map(sp => ({ x: sp.x, act: 'idle', face: sp.face })) : lunch ? spots.map(sp => ({ x: sp.x, act: sp.act === 'sit' ? 'sit' : 'coffee', face: sp.face })) : spots;   /* Mittagspause: Kaffee und Bank; nachts nur der Nachtwächter */
-      const c = WORKERS.crew('hof', Math.min(5, Math.max(1, nW)), sp2, 'small', 36, 286), cw = nt ? nightOnly(c, c => [c[0]]) : c;
+    const nightOnly = (c, keep, spd, right) => { const c0 = keep(c); c0.spots = c.spots; c0.x0 = c.x0; c0.x1 = c.x1; c.forEach((a, i) => { if (c0.indexOf(a) >= 0) return; const out = right ? W + 14 + i * 8 : -14 - i * 8;   /* right (v135): Promenade nach rechts verlassen, links steht dort der Zaun */ if (!isFinite(a.x)) a.x = out; if (!isFinite(a.dist)) a.dist = 0; if (right ? a.x < out : a.x > out) { const sp = (spd || 4.2) * (dt || 0);   /* dt kann im ersten Bild fehlen */ a.x = right ? Math.min(out, a.x + sp) : Math.max(out, a.x - sp); a.dist += sp; a.dir = right ? 1 : -1; a.st = 'walk'; a.box = false; } else { a.st = 'act'; a.act = 'idle'; a.face = right ? -1 : 1; } a.t = 1.5 + i * 2.5; a.tt = a.t; }); return c0; };   /* Feierabend: die anderen gehen nach links hinaus; morgens kommen sie herein */   /* nachts sind die anderen weg (links vor dem Tor); morgens kommen sie herein */
+    if (spots.length > 1) { const nt = nightW && st.fw === undefined, rainOut = wet && st.fw === undefined, sp2 = nt || rainOut ? spots.map(sp => ({ x: sp.x, act: 'idle', face: sp.face })) : lunch ? spots.map(sp => ({ x: sp.x, act: sp.act === 'sit' ? 'sit' : 'coffee', face: sp.face })) : spots;   /* Mittagspause: Kaffee und Bank; nachts nur der Nachtwächter */
+      const c = WORKERS.crew('hof', Math.min(5, Math.max(1, nW)), sp2, 'small', 36, 286), cw = rainOut ? nightOnly(c, c => nt ? [c[0]] : [], 12) : nt ? nightOnly(c, c => [c[0]]) : c;   /* Regen: alle laufen zügig ins Trockene; nachts bleibt nur der Nachtwächter draußen */
       if (st.fw !== undefined) watch(c); else WORKERS.step(cw, dt);
-      add(G + 5, () => { WORKERS.draw(lc, cw, G + 4, time); if (nt) { const a = c[0], fc = (a.st === 'walk' ? a.dir : a.face) || 1, lx = Math.round(a.x) + (fc > 0 ? 3 : -3), ly = G - 1 + (a.st === 'walk' && Math.floor(a.dist / 3) % 2 ? 1 : 0);   /* Laterne in der Hand */
+      add(G + 5, () => { WORKERS.draw(lc, rainOut ? c : cw, G + 4, time);   /* bei Regen sieht man die anderen hinauslaufen */ if (nt) { const a = c[0], fc = (a.st === 'walk' ? a.dir : a.face) || 1, lx = Math.round(a.x) + (fc > 0 ? 3 : -3), ly = G - 1 + (a.st === 'walk' && Math.floor(a.dist / 3) % 2 ? 1 : 0);   /* Laterne in der Hand */
         R(lc, lx, ly - 1, 1, 1, '#3e2731'); R(lc, lx, ly, 1, 2, '#ffd56a'); L.push({ x: lx, y: ly, w: 1, h: 2, c: '#ffd56a', fire: true, pool: { x: lx, y: G + 5 } }); if (a.st === 'walk' && Math.random() < dt * .12) SFX.play('lantern', { pan: SFX.panX(lx), vol: .6, gap: 5 }); } }); }
     // Spaziergänger unten auf der Uferpromenade: bleiben stehen, schauen aufs Wasser, gehen weiter
     PROMC = null; ANG = null; if (spots.length > 1) { const ps = [{ x: 44, act: 'pier', face: 1 }, { x: 110, act: 'idle', face: 1 }, { x: 186, act: 'idle', face: -1 }, { x: 262, act: 'idle', face: 1 }, { x: 342, act: 'pond', face: -1 }];
-      const c2 = WORKERS.crew('prom', Math.max(1, Math.min(2, Math.ceil(nW / 2))), ps, 'small', 28, 372), ntP = nightW && st.fw === undefined;
-      if (ntP) { const a0 = c2[0]; nightOnly(c2, c => [c[0]]);   /* abends geht der erste zum Steg, hinaus ans Ende und setzt sich als Angler */
+      const c2 = WORKERS.crew('prom', Math.max(1, Math.min(2, Math.ceil(nW / 2))), ps, 'small', 28, 372), ntP = nightW && st.fw === undefined, rainP = wet && st.fw === undefined;
+      if (rainP) nightOnly(c2, () => [], 12, true);   /* Regen: Promenade leer, auch kein Angler */
+      else if (ntP) { const a0 = c2[0]; nightOnly(c2, c => [c[0]], 0, true);   /* abends geht der erste zum Steg, hinaus ans Ende und setzt sich als Angler */
         if (a0.act === 'pier' && a0.st === 'act') { a0.tt = a0.tt || 26; if (a0.t <= a0.tt * .5) { a0.t = a0.tt * .5; ANG = a0; } else a0.t -= dt; }
         else if (a0.st === 'walk' && a0.spot === 0) { if (!isFinite(a0.x)) a0.x = 44; if (!isFinite(a0.dist)) a0.dist = 0; const d = 44 - a0.x, sp = Math.sign(d) * Math.min(Math.abs(d), 4.2 * (dt || 0)); a0.x += sp; a0.dist += Math.abs(sp); a0.dir = Math.sign(d) || a0.dir; if (Math.abs(44 - a0.x) < .2) { a0.st = 'act'; a0.act = 'pier'; a0.tt = 26; a0.t = 26; } }
         else { a0.spot = 0; a0.st = 'walk'; a0.tx = 44; } }   /* nachts: der erste sitzt als Angler am Stegende, morgens steht er auf und geht zurück */
-      if (st.fw !== undefined) watch(c2); else if (!ntP) WORKERS.step(c2, dt); PROMC = c2; add(ART.PROM + 5, () => WORKERS.draw(lc, c2, ART.PROM + 4, time));
+      if (st.fw !== undefined) watch(c2); else if (!ntP && !rainP) WORKERS.step(c2, dt); PROMC = c2; add(ART.PROM + 5, () => WORKERS.draw(lc, c2, ART.PROM + 4, time));
       for (const a of c2) if (a.act === 'pond' && a.st === 'act') {
         const q = 1 - a.t / (a.tt || 1), up = q < .38, down = q > .62, yTop = ART.POND.y + 2, f = up ? q / .38 : down ? (1 - q) / .38 : 1, y = Math.round(ART.PROM + 4 - f * (ART.PROM + 4 - yTop)), x = Math.round(ART.gardenX(y));
-        add(y, () => { if (up || down) { const F = WORKERS.front(a.v, up); ART.blit(lc, F[Math.floor((ART.PROM - y) / 2) % 4], x, y + 1, null, false); } else { const W2 = WORKERS.set('small', a.v), S2 = W2.S; ART.blit(lc, (q > .45 && q < .55 ? W2.wave : W2.idle)[Math.floor(time * 1.5) % 2], x + 3, y + Math.round(S2.h - S2.hipY - S2.thigh - S2.shin), null, false); } }); } }
+        add(y, () => { if (up || down) { const F = WORKERS.front(a.v, up); ART.blit(lc, F[Math.floor(Math.abs(ART.PROM - y) / 2) % 4], x, y + 1, null, false);   /* Math.abs (v136): in den ersten Schritten liegt y noch unter der Promenade, der negative Index gab kein Bild und brach das Zeichnen ab */ } else { const W2 = WORKERS.set('small', a.v), S2 = W2.S; ART.blit(lc, (q > .45 && q < .55 ? W2.wave : W2.idle)[Math.floor(time * 1.5) % 2], x + 3, y + Math.round(S2.h - S2.hipY - S2.thigh - S2.shin), null, false); } }); } }
     // Gabelstapler auf dem Fahrweg, Katzenroboter auf dem Grünstreifen
-    if (st.owned.stapler) { const ph = time * .05, tgt = work ? 205 + Math.sin(ph) * 95 : 318;   /* nachts weiter rechts am Weg abgestellt, gut sichtbar */ if (FK.x === undefined) FK.x = tgt; const dx = tgt - FK.x, mv = Math.max(-dt * 6, Math.min(dt * 6, dx)); FK.x += mv; if (Math.abs(mv) > .001) FK.dir = Math.sign(mv); const x = FK.x, moving = Math.abs(mv) > .001;   /* fährt abends zum Parkplatz und morgens wieder los */
-      if (moving) SFX.hum('forklift', .18, SFX.panX(x)); SFX.edge('forkBeep', moving && FK.dir < 0 && Math.floor(time * 1.4) % 2 === 0, 'beep', { pan: SFX.panX(x), vol: .7 });   /* rückwärts piept er */ add(G + 4, () => fx('stapler', blit(lc, !work && !moving ? FORK_E : FORK, x, G + 4, null, (FK.dir || 1) < 0))); }   /* abgestellt: Fahrer hat Feierabend, Gabel leer */
+    if (st.owned.stapler) { const ph = time * .05, tgt = workC ? 205 + Math.sin(ph) * 95 : 318;   /* bei Gewitter abgestellt */   /* nachts weiter rechts am Weg abgestellt, gut sichtbar */ if (FK.x === undefined) FK.x = tgt; const dx = tgt - FK.x, mv = Math.max(-dt * 6, Math.min(dt * 6, dx)); FK.x += mv; if (Math.abs(mv) > .001) FK.dir = Math.sign(mv); const x = FK.x, moving = Math.abs(mv) > .001;   /* fährt abends zum Parkplatz und morgens wieder los */
+      if (moving) SFX.hum('forklift', .18, SFX.panX(x)); SFX.edge('forkBeep', moving && FK.dir < 0 && Math.floor(time * 1.4) % 2 === 0, 'beep', { pan: SFX.panX(x), vol: .7 });   /* rückwärts piept er */ add(G + 4, () => fx('stapler', blit(lc, !workC && !moving ? FORK_E : FORK, x, G + 4, null, (FK.dir || 1) < 0))); }   /* abgestellt: Fahrer hat Feierabend, Gabel leer */
     if (st.owned.katze) { const c = ART.catStep(CATST, dt, time, 50, 290, 6, .55); if (Math.random() < dt * .02) SFX.play('meow', { pan: SFX.panX(c.x), vol: .7, gap: 20 }); add(VERGE_B + 1, () => { const o = blit(lc, c.fr, c.x, VERGE_B + 1, null, c.flip); fx('katze', o); L.push({ x: o.x + (c.flip ? c.fr.w - 1 - c.fr.eye.x : c.fr.eye.x), y: o.y + c.fr.eye.y, w: 1, h: 1, c: '#7fe0ff', fire: true, a: .6 }); }); }
     // Lieferwagen: fährt durch das Tor herein und parkt auf dem Fahrweg
     delete HIT.truck;
@@ -488,8 +499,9 @@ const SCENE = (() => {
     for (const p of parts) { const a = Math.max(0, p.life / p.max), g3 = p.z !== undefined && p.z < ART.PROM + 1 ? (behind = true, PG) : sc; g3.globalAlpha = p.kind === 'smoke' ? a * .55 : .9; R(g3, p.x, p.y, p.sz, p.sz, p.kind === 'smoke' ? smc : p.c); }
     sc.globalAlpha = 1; PG.globalAlpha = 1;
     if (behind) { PG.globalCompositeOperation = 'destination-out'; for (const f of FRONTS) PG.drawImage(f.c, f.x, f.y); PG.globalCompositeOperation = 'source-over'; sc.drawImage(PC, 0, 0); }   /* Rauch hinter dem Prüflabor bleibt hinter dem Prüflabor */
-    const pools = g2 => { if (n > .2) for (const l of L) if (l.pool) { const a = (n - .2) * .45; for (let i = 0; i < 4; i++) { g2.globalAlpha = a * (.18 + i * .1); const w = 26 - i * 6; R(g2, l.pool.x - w / 2, l.pool.y - 1 - Math.floor(i / 2), w, 3 - Math.floor(i / 2), '#ffd98a'); } g2.globalAlpha = 1; } };
-    ART.glowPass(sc, L, l => (l.fire ? Math.max(n, .35) : n) * (l.a === undefined ? 1 : l.a), !SL ? pools : (g2 => { pools(g2);   // Suchscheinwerfer aus den Augen des Mechas: Kegel und heller Fleck am Boden; Gebäude vorn verdecken ihn
+    const nL = Math.max(n, cl * .5), damp = 1 - .45 * cl;   /* Regen: Lichter gehen schon bei trübem Tag an, ihr Schein ist aber gedämpft */
+    const pools = g2 => { if (nL > .2) for (const l of L) if (l.pool) { const a = (nL - .2) * .45 * damp; for (let i = 0; i < 4; i++) { g2.globalAlpha = a * (.18 + i * .1); const w = 26 - i * 6; R(g2, l.pool.x - w / 2, l.pool.y - 1 - Math.floor(i / 2), w, 3 - Math.floor(i / 2), '#ffd98a'); } g2.globalAlpha = 1; } };
+    ART.glowPass(sc, L, l => (l.fire ? Math.max(nL, .35) : nL) * damp * (l.a === undefined ? 1 : l.a), !SL ? pools : (g2 => { pools(g2);   // Suchscheinwerfer aus den Augen des Mechas: Kegel und heller Fleck am Boden; Gebäude vorn verdecken ihn
       CG.clearRect(0, 0, W, H); const gr = CG.createLinearGradient(SL.x, SL.y, SL.tx, SL.ty); gr.addColorStop(0, 'rgba(255,240,190,.4)'); gr.addColorStop(1, 'rgba(255,240,190,.08)');
       CG.fillStyle = gr; CG.beginPath(); CG.moveTo(SL.x, SL.y); CG.lineTo(SL.tx - 16, SL.ty); CG.lineTo(SL.tx + 16, SL.ty); CG.closePath(); CG.fill();
       CG.fillStyle = 'rgba(255,240,190,.2)'; CG.beginPath(); CG.ellipse(SL.tx, SL.ty, 17, 4, 0, 0, Math.PI * 2); CG.fill();
@@ -511,7 +523,7 @@ const SCENE = (() => {
           for (let j = 0; j < 40; j++) { const an = j / 40 * Math.PI * 2 + i, v = 26 + ((i * 7 + j * 5) % 12), d = v * (1 - Math.exp(-2.4 * b2)), px = ax + Math.cos(an) * d, py = ay + Math.sin(an) * d + 7 * b2 * b2, sz = b2 < .7 ? 2 : 1;
             sc.globalAlpha = fade2 * (Math.random() < .85 ? 1 : .3); R(sc, Math.round(px), Math.round(py), sz, sz, j % 3 ? cs[0] : cs[1]); if (b2 > .3) { sc.globalAlpha = fade2 * .4; R(sc, Math.round(px - Math.cos(an) * 2), Math.round(py - Math.sin(an) * 2 - 1), 1, 1, cs[0]); } } } }
       sc.restore(); }
-    if (n > .4) { const ff = (n - .4) / .6; for (const f of flies) { const x = ((f.x + Math.sin(time * f.s + f.p) * 10) % W + W) % W, y = Math.min(hillH[Math.floor(x)], ART.VERGE + 4) - 5 - Math.abs(Math.sin(time * .5 * f.s + f.p * 1.3)) * 16, bl = Math.sin(time * 2.2 * f.s + f.p * 4); if (bl > .1) glow(sc, { x, y: f.p > 3.5 ? y + 34 : y, w: 1, h: 1, c: '#eaff9c' }, ff * bl); } }
+    if (n > .4 && rn < .9) { const ff = (n - .4) / .6 * (1 - rn);   /* Glühwürmchen fliegen bei Regen nicht */ for (const f of flies) { const x = ((f.x + Math.sin(time * f.s + f.p) * 10) % W + W) % W, y = Math.min(hillH[Math.floor(x)], ART.VERGE + 4) - 5 - Math.abs(Math.sin(time * .5 * f.s + f.p * 1.3)) * 16, bl = Math.sin(time * 2.2 * f.s + f.p * 4); if (bl > .1) glow(sc, { x, y: f.p > 3.5 ? y + 34 : y, w: 1, h: 1, c: '#eaff9c' }, ff * bl); } }
     ctx.drawImage(scene, 0, 0, W, WATER, 0, 0, W, WATER);
     water(ctx, scene, k, time, sunPos, moonPos);
     lilies(ctx, time, k);
@@ -520,7 +532,7 @@ const SCENE = (() => {
       if (mq > .02) for (let i = 0; i < 5; i++) { const yy = WATER + 3 + i * 6, off = (time * (2 + i) + i * 70) % (W + 120) - 60; ctx.globalAlpha = mq * (.32 - i * .04); R(ctx, Math.round(off) - 60, yy, 140, 3, '#f4f6fb'); R(ctx, Math.round(off + 180) % (W + 120) - 60, yy + 2, 110, 2, '#f4f6fb'); } ctx.globalAlpha = 1; }
     {   // Entenfamilie: schwimmt am Tag dicht am Ufer entlang, dreht manchmal eine Runde am Steg und schwimmt rechts ganz aus dem Bild
       const P = 120, cyD = Math.floor(time / P), u = time % P, loop = cyD % 2 === 0, LA = 86, LO = loop ? 47 : 0, LEN = LA + LO + (W + 40 - 66), SP = 7;
-      if (DK.cyc !== cyD) { DK.cyc = cyD; DK.day = n < .4; }
+      if (DK.cyc !== cyD) { DK.cyc = cyD; DK.day = n < .4 && !gew; }   /* bei Gewitter bleiben die Enten weg, Regen stört sie nicht */
       const at = d => { if (d < LA) return { x: -20 + d, y: WATER + 5, f: 1 }; if (d < LA + LO) { const a = (d - LA) / LO * Math.PI * 2; return { x: 66 + 10 * Math.sin(a), y: WATER + 10 - 5 * Math.cos(a), f: Math.cos(a) >= 0 ? 1 : -1 }; } const d2 = d - LA - LO; return { x: 66 + d2, y: WATER + 5 + Math.round(Math.sin(d2 * .05)), f: 1 }; };
       if (DK.boost > 0) { DK.boost -= dt; DK.extra = (DK.extra || 0) + dt * SP * 1.6; } if (DK.cyc2 !== cyD) { DK.cyc2 = cyD; DK.extra = 0; }   /* angetippt: kurz schneller */
       const d0 = u * SP + (DK.extra || 0); delete HIT.ducks; if (DK.day && d0 < LEN + 30) { const mq = at(Math.min(d0, LEN)); if (mq.x > -6 && mq.x < W + 6) HIT.ducks = { x: Math.round(mq.x) - 22, y: Math.round(mq.y) - 6, w: 30, h: 10, gim: 'ducks' };
@@ -531,6 +543,7 @@ const SCENE = (() => {
           if (big) { P2(-1, y - b, 5, 2, '#8a6a4a'); P2(2, y - 2 - b, 2, 2, '#2f6a3a'); P2(4, y - 1 - b, 1, 1, '#e8a83a'); P2(-1, y - b, 2, 1, '#6a4e36'); }
           else { P2(0, y - b, 3, 2, '#f2d86a'); P2(2, y - 1 - b, 1, 1, '#f2d86a'); P2(3, y - b, 1, 1, '#e8a83a'); }
           if (Math.floor(time * 2 + i) % 3 === 0) { ctx.globalAlpha = .3; P2(-3, y + 1, 2, 1, '#e8f6ff'); ctx.globalAlpha = 1; } } } }
+    const PX = 44;   // Steg: kurz, gerade ins Wasser. Muss VOR dem Angler stehen: stand die Zeile weiter unten, brach das Bild ab, sobald nachts der Angler saß (Steg, Boote, Hinweise fehlten)
     if (ANG) {   // nachts: Angler sitzt am Stegende, Laterne neben sich, Schwimmer zuckt ab und zu
       const ax = PX + 1, ay = WATER + 7, sp = WORKERS.frontSit(ANG ? ANG.v : 3)[0], u = time % 23, bite = u > 17 && u < 18.4, bx = PX + 15, by = WATER + 19 + (bite && Math.floor(u * 6) % 2 ? 1 : 0);
       ctx.save(); ctx.filter = 'brightness(' + Math.round((1 - n * .45) * 100) + '%)'; ART.blit(ctx, sp, ax, ay, null, false); ctx.restore();
@@ -538,7 +551,7 @@ const SCENE = (() => {
       R(ctx, bx, by, 1, 1, '#ff5a4a'); R(ctx, bx, by + 1, 1, 1, '#f4ecdc'); if (bite) { ctx.globalAlpha = .5; R(ctx, bx - 2, by + 2, 5, 1, '#e8f6ff'); ctx.globalAlpha = 1; } SFX.edge('bite', bite, 'plop', { pan: SFX.panX(bx), vol: .7 });
       R(ctx, PX - 4, ay - 3, 2, 3, '#ffd56a'); R(ctx, PX - 4, ay - 4, 2, 1, '#3e2731'); glow(ctx, { x: PX - 4, y: ay - 3, w: 2, h: 3, c: '#ffd56a' }, n); }
     {   // nachts: Ruderboot mit Laterne zieht langsam vorbei (beim Start der Runde entschieden, fährt immer ganz aus dem Bild)
-      const P = 150, u = (time + 40) % P, cyR = Math.floor((time + 40) / P); if (RB.cyc !== cyR) { RB.cyc = cyR; RB.night = n > .55; } if (RB.night && u < 110) { const x = Math.round(W + 20 - u * (W + 40) / 110), y = WATER + 25, st4 = Math.floor(u / 2.2) % 2;
+      const P = 150, u = (time + 40) % P, cyR = Math.floor((time + 40) / P); if (RB.cyc !== cyR) { RB.cyc = cyR; RB.night = n > .55 && !wet; }   /* kein Ruderboot bei Regen */ if (RB.night && u < 110) { const x = Math.round(W + 20 - u * (W + 40) / 110), y = WATER + 25, st4 = Math.floor(u / 2.2) % 2;
         ctx.globalAlpha = .25; R(ctx, x - 8, y + 1, 18, 2, '#0b1030'); ctx.globalAlpha = 1;
         tinted(ctx, BOAT, x - 8, y - 5, n * .45); R(ctx, x, y - 8, 2, 3, '#2a2440'); R(ctx, x, y - 9, 2, 1, '#5c3a2e');
         R(ctx, x - 3 + st4 * 2, y - 4, 1, 1, '#7f5236'); R(ctx, x + 4 - st4 * 2, y - 4, 1, 1, '#7f5236');
@@ -546,7 +559,6 @@ const SCENE = (() => {
         SFX.edge('oar', st4 === 1, 'oar', { pan: SFX.panX(x), vol: .5 });
         R(ctx, x + 6, y - 7, 1, 2, '#ffd56a'); glow(ctx, { x: x + 6, y: y - 7, w: 1, h: 2, c: '#ffd56a' }, n * .9); ctx.globalAlpha = n * .35; R(ctx, x + 5, y + 2, 3, 1, '#ffd56a'); R(ctx, x + 6, y + 4, 1, 1, '#ffd56a'); ctx.globalAlpha = 1; } }
     // Steg und Ruderboot vorne im Wasser
-    const PX = 44;   // Steg: kurz, gerade ins Wasser
     ctx.globalAlpha = .22; R(ctx, PX - 5, WATER + 2, 12, 14, '#0b1030'); ctx.globalAlpha = 1;
     tinted(ctx, PIER, PX - 6, WATER - 3, n * .5);
     if (PROMC) for (const a of PROMC) if (a.act === 'pier' && a.st === 'act' && a !== ANG) {   // geht von vorn gesehen auf den Steg, schaut aufs Wasser, geht von hinten gesehen zurück
@@ -555,7 +567,7 @@ const SCENE = (() => {
       ctx.save(); if (n > .01) ctx.filter = 'brightness(' + Math.round((1 - n * .5) * 100) + '%)'; ART.blit(ctx, fr, PX, by + 1, null, false); ctx.restore(); }
     {   // Raddampfer: kommt selten, legt kurz am unteren Ende des Stegs an (ohne zu wenden) und fährt mit der Strömung weiter
       const P = 150; let t2 = time % P; const stopX = PX + 13, y = WATER + 27, cyS = Math.floor(time / P);   /* legt so an, dass der Rumpf das Stegende überdeckt */
-      if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5; }   /* fährt nur am Tag (beim Start der Runde entschieden) */
+      if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5 && !gew; }   /* fährt nur am Tag und nicht bei Gewitter (beim Start der Runde entschieden) */
       let x = null, moving = true; if (!NB.day) t2 = 999;
       if (t2 < 45) { const q = t2 / 45; x = -50 + (stopX + 50) * (1 - (1 - q) * (1 - q)); }
       else if (t2 < 53) { x = stopX; moving = false; }
@@ -577,6 +589,16 @@ const SCENE = (() => {
         if (n > .3) { ctx.globalAlpha = n * .8; for (let xx = sx + 8; xx < sx + 39; xx += 3) if (xx < sx + 15 || xx > sx + 27) R(ctx, xx, y - 13 + bobY, 1, 1, '#ffd56a'); }
         ctx.globalAlpha = 1; }
     }
+    if (rn > .01) {   // Regen: schräge Tropfenstreifen in zwei Tiefen, Ringe auf dem Wasser, kleine Spritzer auf den Wegen
+      const dim = 1 - .35 * n; ART.regen(ctx, wx, time, dt, n, H);
+      let sp = (70 + 40 * stm) * rn * (dt || 0); while (Math.random() < sp--) { const w = Math.random() < .65; RIP.push({ w, x: Math.floor(Math.random() * W), y: w ? WATER + 2 + Math.floor(Math.random() * (H - WATER - 3)) : Math.random() < .5 ? G + 4 + Math.floor(Math.random() * 4) : ART.PROM + 1 + Math.floor(Math.random() * 5), life: 0 }); }
+      for (let i = RIP.length - 1; i >= 0; i--) { const q = RIP[i]; q.life += dt || 0; const max = q.w ? .7 : .22; if (q.life > max) { RIP.splice(i, 1); continue; } const u = q.life / max, a = (1 - u) * dim;
+        if (q.w) { const hw = 1 + Math.round(u * 3); ctx.globalAlpha = a * .6; R(ctx, q.x - hw, q.y, 1, 1, '#e8f6ff'); R(ctx, q.x + hw, q.y, 1, 1, '#e8f6ff'); ctx.globalAlpha = a * .45; R(ctx, q.x - hw + 1, q.y - 1, hw * 2 - 1, 1, '#e8f6ff'); ctx.globalAlpha = a * .25; R(ctx, q.x - hw + 1, q.y + 1, hw * 2 - 1, 1, '#e8f6ff'); }
+        else { const o = u < .5 ? 1 : 2; ctx.globalAlpha = a * .55; R(ctx, q.x - o, q.y - o, 1, 1, '#e8f0f8'); R(ctx, q.x + o, q.y - o, 1, 1, '#e8f0f8'); if (u < .5) R(ctx, q.x, q.y, 1, 1, '#e8f0f8'); } }
+      ctx.globalAlpha = 1;
+      { let nd = (9 + 4 * stm) * rn * (dt || 0); while (Math.random() < nd--) SFX.play('drip', { pan: Math.random() * 1.6 - .8, vol: .35 + Math.random() * .65, gap: .02 }); }   /* viele einzelne Tropfen statt Rauschen (v135) */
+      if (flash && !CALM) { ctx.globalAlpha = flash * .2; R(ctx, 0, 0, W, H, '#e4ecff'); ctx.globalAlpha = 1; }   /* der Blitz erhellt kurz den ganzen Hof */
+    } else if (RIP.length) RIP.length = 0;
     // Hinweise: Ausrufezeichen nur bei noch nicht reparierten Gebäuden, Kiste wenn etwas abzuholen ist
     for (const id of order) {
       const h = HIT[id], m = st.marks && st.marks[id]; if (!h || !m) continue;
