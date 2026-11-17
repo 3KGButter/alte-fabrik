@@ -38,7 +38,9 @@ window.MockServer = (() => {
   const kette = () => { let k = true; return QUESTS.map((q, i) => { if (q.ms === 'MS5') return wunsch(q, i); const d = wunsch(q, i) && k; if (q.hq) k = k && d; return d; }); };
   let DONE = null, doneStand = null;   /* neu berechnen, wenn der Stand umgeschaltet wird */
   const done = (q, i) => { if (doneStand !== STAND) { DONE = kette(); doneStand = STAND; } return DONE[i]; };
-  const profile = { xp: 9950, level: 12, stufe: 'Zeichenbrettbrecher', klasse: 'Vorschau' };
+  const LV = [[0, '†', 'GameOver'], [1, 1, 'Noob'], [42, 2, 'Kritzelpraktikant'], [143, 3, 'Radierkrümelkönig'], [332, 4, 'Bleistiftmassakrierer'], [640, 5, 'Linienverwackler'], [1096, 6, 'Geodreieckamateur'], [1728, 7, 'Zirkelverbieger'], [2567, 8, 'Zeichenbrettbrecher'], [3640, 9, 'Geometrieguru'], [4976, 10, 'Zirkelbändiger'], [6602, 11, 'Zeichenbrett-Titan'], [8545, 12, 'Projektionsmajestro'], [10831, 13, 'Toleranz-Tüftler'], [13486, 14, 'Zeichenprofi'], [16536, 15, 'Meisterkonstrukteur'], [20003, 16, 'Chefingenieur']].map(([ab, level, stufe]) => ({ ab, level: String(level), stufe }));
+  const MXP = Number(new URLSearchParams(location.search).get('xp')) || 9950;   /* ?xp=… für Tests */
+  const profile = (() => { let l = LV[0]; LV.forEach(e => { if (MXP >= e.ab) l = e; }); return { xp: MXP, level: parseInt(l.level, 10) || 0, stufe: l.stufe, klasse: 'Vorschau', naechste: naechsteStufe_(LV, MXP) }; })();
   const KEY = 'altefabrik_mock_state3';
   let offset = 0; // Zeitsprung für Produktionstest
   try { offset = Number(localStorage.getItem(KEY + '_off')) || 0; } catch (e) {}
@@ -77,7 +79,6 @@ window.MockServer = (() => {
   }
   function leitstandMock() {
     const T = ['Zahnradprofi', 'Blechbieger', 'Fraesfuchs', 'Drehwurm', 'Gewindeguru', 'Kantenkoenig', 'Spaenesammler', 'Nutenmeister', 'Schraubstock', 'Messschieber', 'Pixelpresse', 'Kurbelkind', 'Stahlstern', 'Funkenflug', 'Hebelheld', 'Lochblech', 'Passfeder', 'Federring', 'Bolzenbaer', 'Rasterkatze', 'Tuschefee', 'Lineallotse', 'Zirkelzorro', 'Winkelwal', 'Skizzenspatz'];
-    const LV = [[0, '†', 'GameOver'], [1, 1, 'Noob'], [42, 2, 'Kritzelpraktikant'], [143, 3, 'Radierkrümelkönig'], [332, 4, 'Bleistiftmassakrierer'], [640, 5, 'Linienverwackler'], [1096, 6, 'Geodreieckamateur'], [1728, 7, 'Zirkelverbieger'], [2567, 8, 'Zeichenbrettbrecher'], [3640, 9, 'Geometrieguru'], [4976, 10, 'Zirkelbändiger'], [6602, 11, 'Zeichenbrett-Titan'], [8545, 12, 'Projektionsmajestro'], [10831, 13, ''], [13486, 14, 'Zeichenprofi'], [16536, 15, 'Meisterkonstrukteur'], [20003, 16, 'Chefingenieur']].map(([ab, level, stufe]) => ({ ab, level: String(level), stufe }));
     const lvl = xp => { let l = LV[0]; LV.forEach(e => { if (xp >= e.ab) l = e; }); return l; };
     const profile = {}, done = {}; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     [['11T1', 24], ['11T2', 21], ['11T3', 25], ['11T4', 18]].forEach(([kl, n], k) => { for (let i = 0; i < n; i++) {

@@ -29,7 +29,7 @@ const LEITSTAND = (() => {
 
   // ---------- Seiten aus den Daten ----------
   function seitenBauen() {
-    const p = [{ id: 'zaehler', kurz: 'Zähler', titel: 'Produktionszähler' }, { id: 'top', kurz: 'Top 10', titel: 'Hall of Fame' }, { id: 'vergleich', kurz: 'Vergleich', titel: 'Klassen im Vergleich' }];
+    const p = [{ id: 'zaehler', kurz: 'Zähler', titel: 'Produktionszähler' }, { id: 'top', kurz: 'Top 10', titel: 'Hall of Fame' }, { id: 'vergleich', kurz: 'Klassen', titel: 'Klassen im Vergleich' }];
     D.klassen.forEach((k, i) => p.push({ id: 'kl:' + k.klasse, kurz: k.klasse, titel: 'Rangliste ' + k.klasse, kl: i }));
     p.push({ id: 'level', kurz: 'Level', titel: 'Levelstufen' }, { id: 'badges', kurz: 'Badges', titel: 'Verliehene Badges' });
     return p;
@@ -47,7 +47,7 @@ const LEITSTAND = (() => {
     if (pg.id === 'zaehler') {
       const badges = D.badges.reduce((a, b) => a + b.anzahl, 0);
       const ziffern = fmt(D.gesamtXp).split('').map(c => c === '.' ? '<span class="lpunkt">.</span>' : `<span class="lziff">${c}</span>`).join('');
-      return `<div class="lzaehl"><div class="lzlabel">Ausgeschüttete XP aller Klassen</div><div class="lwerk" aria-label="${fmt(D.gesamtXp)} XP">${ziffern}</div>
+      return `<div class="lzaehl"><div class="lzlabel">Ausgeschüttete XP aller Klassen</div><div class="lwerk" style="--z:${fmt(D.gesamtXp).replace(/\./g, '').length + (fmt(D.gesamtXp).split('.').length - 1) * .45}" aria-label="${fmt(D.gesamtXp)} XP">${ziffern}</div>
         <div class="lkacheln"><div class="lkachel"><b>${fmt(D.schueler)}</b><span>Schüler im Werk</span></div><div class="lkachel"><b>${fmt(D.quests)}</b><span>erledigte Quests</span></div><div class="lkachel"><b>${fmt(badges)}</b><span>verliehene Badges</span></div><div class="lkachel"><b>${fmt(D.schueler ? D.gesamtXp / D.schueler : 0)}</b><span>Ø XP pro Schüler</span></div></div></div>`;
     }
     if (pg.id === 'top') {
@@ -77,7 +77,7 @@ const LEITSTAND = (() => {
       if (!D.levels.length) return '<p class="lleer">Die Leveltabelle wird beim nächsten Abruf aus dem XP-Rechner geladen.</p>';
       const anz = {}; D.klassen.forEach(k => k.liste.forEach(e => { const l = String(e.level || 0); anz[l] = (anz[l] || 0) + 1; }));
       const L = D.levels, half = Math.ceil(L.length / 2);
-      const zeile = (e, i) => { const key = e.level === '†' ? '0' : String(e.level); const a = anz[key] || 0; return `<li style="--st:${i}"><span class="lstep">${esc(e.level)}</span><span class="lstufe2">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lab">ab ${fmt(e.ab)} XP</span><span class="lanz${a ? '' : ' null'}">${a ? a + ' ' + 'Schüler' : '–'}</span></li>`; };
+      const zeile = (e, i) => { const key = e.level === '†' ? '0' : String(e.level); const a = anz[key] || 0; return `<li style="--st:${i}"><span class="lstep">${esc(e.level)}</span><span class="lstufe2">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lab"><span class="lweg">ab </span>${fmt(e.ab)} XP</span><span class="lanz${a ? '' : ' null'}">${a ? a + '<span class="lweg"> Schüler</span>' : '–'}</span></li>`; };
       return `<div class="lspalten" style="--rows:${half}">${[L.slice(0, half), L.slice(half)].map((c, j) => `<ol class="lliste llevel">${c.map((e, i) => zeile(e, i + j * half)).join('')}</ol>`).join('')}</div>`;
     }
     if (pg.id === 'badges') {
@@ -119,7 +119,8 @@ const LEITSTAND = (() => {
     if (D && D.stand) { const s = new Date(D.stand); if (!isNaN(s)) root.querySelector('#lStand').textContent = 'XP-Rechner: ' + s.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ', ' + s.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
   }
   function chips() {
-    root.querySelector('#lChips').innerHTML = pages.map((p, i) => `<button class="lchip${i === idx ? ' on' : ''}${p.id.startsWith('kl:') ? ' kl' : ''}" data-i="${i}" role="tab" aria-selected="${i === idx}"${p.id.startsWith('kl:') ? ` style="--kf:${klFarbe(p.id.slice(3))}"` : ''}>${esc(p.kurz)}</button>`).join('');
+    const box = root.querySelector('#lChips'); setTimeout(() => { const on = box.querySelector('.lchip.on'); if (on && box.scrollWidth > box.clientWidth) box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2; }, 0);   /* schmale Bildschirme: der aktive Reiter rückt in die Mitte der Leiste */
+    box.innerHTML = pages.map((p, i) => `<button class="lchip${i === idx ? ' on' : ''}${p.id.startsWith('kl:') ? ' kl' : ''}" data-i="${i}" role="tab" aria-selected="${i === idx}"${p.id.startsWith('kl:') ? ` style="--kf:${klFarbe(p.id.slice(3))}"` : ''}>${esc(p.kurz)}</button>`).join('');
   }
   function zeigen(richtung) {
     const pg = pages[idx], sch = root.querySelector('#lSchirm');

@@ -780,10 +780,28 @@ const INNER = (() => {
 
   // ---------- Kaufbare Einrichtung (drinnen): an die Wand oder auf den Boden ----------
   const DSI = {
-    plakat: S(['EEEEEEEEEEEE', 'EaaaaaaaaaaE', 'EaEEEEEEEEaE', 'EaEEEaaEEEaE', 'EaEEaEEaEEaE', 'EaEEaEEaEEaE', 'EaEEEaaEEEaE', 'EaEEEEEEEEaE', 'EaaaaaaaaaaE', 'EEEEEEEEEEEE', 'EaEaaEaEaaEE', 'EEEEEEEEEEEE', 'EaaEaEaaEaEE', 'EEEEEEEEEEEE']),
-    zeichnung: S((() => { const g = Grid(26, 18); fill(g, 0, 0, 26, 18, 'wood', 2); g.rect(2, 2, 22, 14, 'J');
-      g.rect(4, 4, 7, 5, 'y'); g.rect(5, 5, 5, 3, 'J'); g.rect(13, 4, 5, 5, 'y'); g.rect(14, 5, 3, 3, 'J'); g.rect(4, 10, 7, 4, 'y'); g.rect(5, 11, 5, 2, 'J');   // drei Ansichten
-      g.rect(12, 6, 1, 1, 'z'); g.rect(4, 9, 1, 1, 'z'); g.rect(19, 12, 4, 3, 'i'); g.rect(20, 13, 2, 1, 'J'); return g.rows(); })()),
+    plakat: S((() => { const g = Grid(18, 24);   /* v141: Aushang im Alurahmen auf leicht vergilbtem Papier: großes Warndreieck, Gebotszeichen Helm, Textzeilen, grüner Fußstreifen */
+      g.rect(0, 0, 18, 24, 'Y'); g.rect(0, 0, 18, 1, 'Z'); g.rect(0, 0, 1, 24, 'Z'); g.rect(17, 1, 1, 23, 'X'); g.rect(1, 23, 17, 1, 'X');
+      g.rect(1, 1, 16, 22, 'I'); g.rect(1, 1, 15, 21, 'H'); g.rect(1, 1, 15, 1, 'I'); g.set(15, 21, 'I'); g.set(14, 21, 'I'); g.set(15, 20, 'I');   /* Papier: cremefarben, Ränder vergilbt */
+      for (let r = 0; r <= 10; r++) { const k = Math.floor(r * .62), x0 = 8 - k, x1 = 9 + k; for (let x = x0; x <= x1; x++) g.set(x, 2 + r, x === x0 || x === x1 || r === 10 ? 'a' : 'E'); }   /* Warndreieck, symmetrisch */
+      g.rect(8, 5, 2, 4, 'a'); g.rect(8, 10, 2, 1, 'a');   /* Ausrufezeichen */
+      for (let y = 13; y <= 20; y++) for (let x = 2; x <= 9; x++) { const d = (x - 5.5) ** 2 + (y - 16.5) ** 2; if (d <= 16) g.set(x, y, d >= 10.5 ? 'x' : (x + y < 17 ? 'z' : 'y')); }   /* blaues Gebotszeichen, rund */
+      g.rect(5, 15, 2, 1, 'J'); g.rect(4, 16, 4, 1, 'H'); g.set(4, 16, 'J'); g.rect(4, 17, 4, 1, 'H'); g.set(7, 17, 'I'); g.rect(3, 18, 6, 1, 'J');   /* Helm: Kuppel und Krempe */
+      for (const [y, w] of [[14, 5], [16, 4], [18, 5]]) g.rect(11, y, w, 1, 'h'); g.rect(11, 14, 2, 1, 'g');
+      g.rect(1, 21, 15, 1, 'P'); g.rect(2, 21, 3, 1, 'Q');   /* grüner Fußstreifen */
+      return g.rows(); })()),
+    zeichnung: S((() => { const g = Grid(28, 21);   /* v141: technische Zeichnung im Holzrahmen: Vorderansicht, Seitenansicht und Draufsicht eines gestuften Bauteils mit Bohrung, Maßlinien, Mittellinien und Schriftfeld; Papier cremefarben */
+      fill(g, 0, 0, 28, 21, 'wood', 2); g.rect(0, 0, 28, 1, 'e'); g.rect(0, 0, 1, 21, 'e'); g.rect(27, 1, 1, 20, 'b'); g.rect(1, 20, 27, 1, 'a');
+      g.rect(2, 2, 24, 17, 'H'); g.rect(2, 2, 24, 1, 'I'); g.rect(25, 3, 1, 16, 'I'); g.rect(2, 18, 24, 1, 'I');
+      const L = (x0, y0, x1, y1, c) => { if (x0 === x1) for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) g.set(x0, y, typeof c === 'function' ? c(y) : c); else for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) g.set(x, y0, typeof c === 'function' ? c(x) : c); };
+      const K = 'x', dash = c => i => i % 2 ? 'H' : c, dd = i => i % 4 === 2 ? 'H' : 'v';
+      L(5, 5, 9, 5, K); L(9, 5, 9, 8, K); L(9, 8, 12, 8, K); L(12, 8, 12, 10, K); L(5, 10, 12, 10, K); L(5, 5, 5, 10, K); L(7, 6, 7, 9, dash('y'));   /* Vorderansicht mit verdeckter Bohrung */
+      L(15, 5, 18, 5, K); L(15, 5, 15, 10, K); L(18, 5, 18, 10, K); L(15, 10, 18, 10, K); L(15, 8, 18, 8, K);   /* Seitenansicht */
+      L(5, 13, 12, 13, K); L(5, 16, 12, 16, K); L(5, 13, 5, 16, K); L(12, 13, 12, 16, K); L(9, 13, 9, 16, K); for (const [x, y] of [[5, 13], [7, 13], [5, 15], [7, 15], [6, 13], [6, 15], [5, 14], [7, 14]]) g.set(x + 0, y, 'x'); L(4, 14, 13, 14, dd); L(6, 12, 6, 17, dd); for (const [x, y] of [[5, 13], [7, 13], [5, 15], [7, 15], [6, 13], [6, 15], [5, 14], [7, 14]]) g.set(x, y, 'x');   /* Bohrung über den Mittellinien */   /* Draufsicht mit Bohrung und Mittellinien */
+      L(5, 3, 12, 3, 'z'); g.set(5, 3, 'x'); g.set(12, 3, 'x'); g.set(6, 3, 'x'); g.set(11, 3, 'x'); L(3, 5, 3, 10, 'z'); g.set(3, 5, 'x'); g.set(3, 10, 'x');   /* Maßlinien mit Pfeilen */
+      g.rect(8, 2, 2, 1, 'g'); g.set(2, 7, 'g');   /* Maßzahlen */
+      g.rect(18, 12, 7, 6, 'x'); g.rect(19, 13, 5, 4, 'H'); L(19, 15, 23, 15, 'x'); L(21, 13, 21, 14, 'x'); g.rect(19, 13, 2, 1, 'h'); g.rect(22, 13, 2, 1, 'h'); g.rect(19, 16, 4, 1, 'g');   /* Schriftfeld */
+      return g.rows(); })()),
     ordner: S((() => { const g = Grid(28, 15);   /* Wandregal: Ordner mit runden Rücken (hell links, dunkel rechts), Rückenschild, Griffloch; ein Ordner lehnt schräg, daneben eine Ablagebox */
       const cols = [['s', 't', 'u', 'v'], ['x', 'y', 'z', 'A'], ['n', 'o', 'p', 'q'], ['C', 'D', 'E', 'F'], ['O', 'P', 'Q', 'B'], ['s', 't', 'u', 'v'], ['x', 'y', 'z', 'A']];
       cols.forEach((c, i) => { const x = 1 + i * 3, top = 2 + (i % 3 === 1 ? 1 : 0); if (i === 6) return;
@@ -793,19 +811,39 @@ const INNER = (() => {
       fill(g, 23, 6, 4, 6, 'wood', 3); g.rect(24, 8, 2, 1, 'b'); g.rect(23, 5, 4, 1, 'J'); g.set(24, 4, 'H');   /* Ablagebox mit Papier */
       g.rect(0, 12, 28, 1, 'e'); g.rect(0, 13, 28, 1, 'c'); g.rect(1, 14, 26, 1, 'b');   /* Regalbrett mit Kante und Schatten */
       g.set(3, 14, 'h'); g.set(24, 14, 'h'); return g.rows(); })()),
-    werkzeugwand: S((() => { const g = Grid(30, 20);   /* Lochwand mit Rahmen; Werkzeuge mit Licht von links oben und Schattenkontur auf der Wand */
-      fill(g, 0, 0, 30, 20, 'wood', 4); for (let y = 2; y < 19; y += 3) for (let x = 2; x < 29; x += 3) g.set(x, y, 'c');
-      g.rect(0, 0, 30, 1, 'f'); g.rect(0, 19, 30, 1, 'b'); g.rect(29, 0, 1, 20, 'c'); g.rect(0, 0, 1, 20, 'e');
-      const sh = (x, y, w, h) => g.rect(x + 1, y + 1, w, h, 'c');   /* Schatten auf der Lochwand */
-      sh(3, 3, 2, 11); sh(2, 2, 4, 2); g.rect(3, 4, 2, 10, 'd'); g.rect(3, 4, 1, 10, 'e'); g.set(4, 13, 'c'); g.rect(2, 2, 4, 2, 'X'); g.rect(2, 2, 4, 1, 'Z'); g.set(5, 3, 'T');   /* Hammer: Holzstiel, Stahlkopf */
-      sh(8, 3, 3, 12); g.rect(9, 5, 1, 10, 'Y'); g.rect(8, 3, 3, 2, 'Y'); g.set(8, 3, 'l'); g.set(9, 3, '.'); g.set(10, 4, 'X'); g.set(9, 14, 'X'); g.rect(9, 5, 1, 1, 'Z');   /* Maulschlüssel */
-      sh(13, 4, 8, 5); g.rect(13, 4, 8, 4, 't'); g.rect(13, 4, 8, 1, 'v'); g.rect(13, 7, 8, 1, 's'); g.rect(14, 5, 2, 1, 'u'); g.rect(13, 8, 8, 1, 'Y'); g.rect(13, 8, 8, 1, 'Z'); g.set(20, 8, 'X');   /* Säge: roter Griff, Sägeblatt */
-      for (let x = 14; x < 21; x += 2) g.set(x, 9, 'X');
-      for (const [x, c] of [[23, ['C', 'E', 'F']], [26, ['x', 'z', 'A']]]) { sh(x, 3, 2, 11); g.rect(x, 3, 2, 5, c[1]); g.rect(x, 3, 1, 5, c[2]); g.set(x + 1, 7, c[0]); g.rect(x, 8, 1, 6, 'Y'); g.set(x, 8, 'Z'); g.set(x, 13, 'X'); }   /* zwei Schraubendreher */
-      sh(13, 12, 9, 5); g.rect(13, 12, 9, 5, 'O'); g.rect(13, 12, 9, 1, 'Q'); g.rect(13, 12, 1, 5, 'Q'); g.rect(21, 13, 1, 4, 'O'); g.rect(14, 13, 7, 3, 'P'); g.rect(15, 14, 5, 1, 'O'); g.rect(16, 13, 3, 1, 'Z');   /* Werkzeugkasten mit Griff */
+    werkzeugwand: S((() => { const g = Grid(32, 23);   /* v140: Lochwand im Holzrahmen; Hammer, drei Schlüssel, Zange, Säge, zwei Schraubendreher, Maßband; unten ein Brett mit Dosen. Jedes Werkzeug wirft einen Schatten nach rechts unten */
+      fill(g, 0, 0, 32, 23, 'wood', 3); g.rect(1, 1, 30, 17, 'd'); for (let y = 2; y < 18; y += 3) for (let x = 2; x < 31; x += 3) g.set(x, y, 'c');
+      g.rect(0, 0, 32, 1, 'e'); g.rect(0, 0, 1, 23, 'e'); g.rect(31, 0, 1, 23, 'b'); g.rect(0, 22, 32, 1, 'a');
+      const sh = (x, y, w, h) => g.rect(x + 1, y + 1, w, h, 'c');
+      sh(2, 2, 4, 2); sh(3, 4, 2, 10); g.rect(3, 4, 2, 10, 'd'); g.rect(3, 4, 1, 10, 'e'); g.rect(3, 13, 2, 1, 'c'); g.rect(2, 2, 4, 2, 'Y'); g.rect(2, 2, 4, 1, 'Z'); g.set(5, 3, 'X'); g.set(2, 2, 'l');   /* Hammer */
+      for (const [x, len] of [[8, 9], [10, 11], [12, 8]]) { sh(x, 2, 1, len); g.rect(x, 4, 1, len - 2, 'Y'); g.rect(x - 0, 2, 1, 2, 'Z'); g.set(x, 2, 'l'); g.set(x, 1 + len, 'X'); }   /* drei Maulschlüssel, unterschiedlich lang */
+      sh(14, 2, 3, 12); g.rect(14, 2, 1, 4, 'Z'); g.rect(16, 2, 1, 4, 'Y'); g.set(15, 5, 'X'); g.rect(14, 6, 1, 7, 'u'); g.rect(16, 6, 1, 7, 't'); g.set(14, 6, 'v'); g.set(14, 12, 's'); g.set(16, 12, 's');   /* Zange mit roten Griffen */
+      sh(18, 3, 12, 6); g.rect(18, 3, 4, 5, 'E'); g.rect(18, 3, 4, 1, 'F'); g.rect(19, 5, 2, 1, 'd'); g.rect(22, 4, 8, 3, 'Z'); g.rect(22, 4, 8, 1, 'l'); for (let x = 22; x < 30; x += 2) g.set(x, 7, 'Y'); g.set(29, 6, 'Y');   /* Säge: Holzgriff mit Loch, Blatt mit Zähnen */
+      for (const [x, c] of [[19, ['C', 'E', 'F']], [22, ['x', 'z', 'A']]]) { sh(x, 10, 2, 8); g.rect(x, 10, 2, 4, c[1]); g.rect(x, 10, 1, 4, c[2]); g.set(x + 1, 13, c[0]); g.rect(x, 14, 1, 3, 'Z'); g.set(x, 17, 'X'); }   /* zwei Schraubendreher */
+      sh(25, 10, 5, 5); for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) { const d = (x - 2) ** 2 + (y - 2) ** 2; if (d <= 5) g.set(25 + x, 10 + y, d >= 4 ? 'D' : d >= 1 ? 'E' : 'a'); } g.set(26, 11, 'F'); g.rect(27, 14, 3, 1, 'Z');   /* Maßband */
+      g.rect(1, 18, 30, 1, 'f'); g.rect(1, 19, 30, 1, 'c');   /* Ablagebrett */
+      shCylV(g, 4, 14, 8, 17, 'red'); shCylV(g, 10, 15, 13, 17, 'blue'); g.rect(4, 14, 5, 1, 'Z'); g.rect(10, 15, 4, 1, 'Z'); g.rect(5, 16, 3, 1, 'J'); fill(g, 25, 15, 5, 3, 'wood', 4);   /* Farbdosen, kleine Schachtel */
       return g.rows(); })()),
     urkunde: S(['DDDDDDDDDDDDDDDD', 'DEEEEEEEEEEEEEED', 'DEJJJJJJJJJJJJED', 'DEJiiiiiiiiiiJED', 'DEJJJJJJJJJJJJED', 'DEJiiiiiiiJJJJED', 'DEJJJJJJJJJJJJED', 'DEJiiiiiJJJuuJED', 'DEJJJJJJJJJutJED', 'DEJJJJJJJJJJJJED', 'DEEEEEEEEEEEEEED', 'DDDDDDDDDDDDDDDD']),
-    banner: S(['hhhhhhhhhhhhhhhh', '.PPPPPPPPPPPPPP.', '.PQQQQQQQQQQQQP.', '.PQPPPPEEPPPPQP.', '.PQPPPEFFEPPPQP.', '.PQPPEFPPFEPPQP.', '.PQPPEFPPFEPPQP.', '.PQPPPEFFEPPPQP.', '.PQPPPPEEPPPPQP.', '.PQQQQQQQQQQQQP.', '.PPPPPPPPPPPPPP.', '.PPPPPP..PPPPPP.', '.PPPPP....PPPPP.', '.PPPP......PPPP.']),
+    banner: S((() => { const g = Grid(19, 25);   /* v140: Stoffbanner an einer Messingstange mit Kugelenden; Falten, Goldsaum, Zahnrad-Emblem, Schwalbenschwanz mit Quasten */
+      g.rect(0, 1, 19, 2, 'D'); g.rect(0, 1, 19, 1, 'F'); g.rect(0, 0, 2, 4, 'E'); g.set(0, 0, 'G'); g.rect(17, 0, 2, 4, 'D'); g.set(17, 0, 'F'); g.set(9, 0, 'a');   /* Stange */
+      for (let y = 3; y < 24; y++) for (let x = 2; x < 17; x++) { const tail = y > 19 && Math.abs(x - 9) < (y - 19) * 1.6; if (tail) continue; const f = (x - 2) % 7;
+        g.set(x, y, x === 2 || x === 16 || y === 3 ? 'E' : x === 3 || x === 15 ? 'F' : f === 0 ? 'O' : f === 1 ? 'Q' : f >= 5 ? 'O' : 'P'); }
+      for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) { const d = x * x + y * y, a = Math.atan2(y, x), tooth = Math.cos(a * 8) > .3; if (d <= 9 || (d <= 18 && tooth) || (d <= 13)) g.set(9 + x, 10 + y, d <= 2 ? 'O' : d <= 5 ? 'D' : x + y < 0 ? 'F' : 'E'); }
+      g.set(9, 10, 'P'); for (const [y, w] of [[16, 9], [18, 7]]) g.rect(9 - (w >> 1), y, w, 1, 'F');   /* Zahnrad und zwei goldene Zeilen */
+      for (const x of [3, 15]) { g.set(x, 24, 'E'); g.set(x, 23, 'F'); }
+      return g.rows(); })()),
+    haengepflanze: S((() => { const g = Grid(24, 32);   /* v140: Efeutute auf einem Holzständer; lange Ranken mit herzförmigen Blättern hängen zu beiden Seiten bis fast zum Boden */
+      for (const [x0, x1] of [[7, 5], [16, 18]]) for (let y = 17; y < 32; y++) { const x = Math.round(x0 + (x1 - x0) * (y - 17) / 14); g.set(x, y, x0 < 12 ? 'd' : 'b'); }   /* Ständerbeine */
+      g.rect(6, 16, 12, 2, 'e'); g.rect(6, 16, 12, 1, 'f'); g.rect(8, 25, 8, 1, 'c'); g.rect(11, 18, 2, 14, 'c'); g.set(11, 18, 'd');
+      shCylV(g, 8, 10, 15, 15, 'red'); g.rect(7, 9, 10, 2, 'u'); g.rect(7, 9, 10, 1, 'v'); g.set(16, 10, 's');   /* Topf */
+      shBall(g, 11.5, 5.5, 7, 3.6, ['m', 'n', 'o', 'p', 'q', 'r']); shBall(g, 6, 8, 2.5, 2, ['m', 'n', 'o', 'p', 'q', 'r']); shBall(g, 17, 8, 2.5, 2, ['m', 'n', 'o', 'p', 'q', 'r']);   /* Blätterbusch über dem Topfrand, Topf bleibt sichtbar */
+      /* Ranken: dünner Stiel, Blätter abwechselnd links und rechts, nach unten kleiner und dunkler */
+      for (const [sx, dir, len, wob, ph] of [[5, -1, 21, 1.2, 0], [18, 1, 23, 1.1, 1.3], [8, -1, 13, .7, 2.1], [15, 1, 15, .8, .6]]) {
+        for (let i = 0; i < len; i++) { const y = 9 + i, x = Math.round(sx + dir * (Math.sin(i * .32 + ph) * wob + i * .1)); if (x < 1 || x > 22 || y > 31) break; g.set(x, y, 'o');
+          if (i % 3 === 1) { const side = (i % 6 === 1 ? -1 : 1), dk = i > len * .6; g.set(x + side, y, dk ? 'o' : 'q'); g.set(x + side * 2, y, dk ? 'n' : 'p'); g.set(x + side, y + 1, dk ? 'n' : 'o'); if (!dk) g.set(x + side, y - 1, 'r'); } } }
+      for (const [x, y] of [[7, 3], [10, 2], [15, 3], [13, 5]]) { g.set(x, y, 'r'); g.set(x + 1, y, 'q'); }   /* helle Blattspitzen oben */
+      return g.rows(); })()),
     leuchtschild: S((() => { const g = Grid(34, 14); fill(g, 0, 0, 34, 14, 'metal', 0); g.rect(1, 1, 32, 12, 'U'); g.rect(1, 1, 32, 12, 'a');
       const W2 = 'W'; for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) { const d = x * x + y * y; if (d >= 9 && d <= 17) g.set(8 + x, 7 + y, W2); }   // Zahnrad aus Neon
       [[17, 3], [16, 4], [15, 5], [16, 6], [17, 7], [16, 8], [15, 9], [15, 10]].forEach(([x, y]) => g.set(x + 3, y, 'V'));   // Blitz

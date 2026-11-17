@@ -4,8 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Alte Fabrik">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#d3dfe4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11172a" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Die Alte Fabrik</title>
-<link rel="stylesheet" href="style.css?v=138">
+<link rel="stylesheet" href="style.css?v=142">
 </head>
 <body>
 <div class="app hidden" id="app">
@@ -29,6 +36,7 @@
       <button class="abtn" data-p="rank" title="Rangliste" aria-label="Rangliste"><img id="ico_rank" alt=""></button>
       <button class="abtn" data-p="menu" title="Menü" aria-label="Menü"><img id="ico_menu" alt=""></button>
     </nav>
+    <div class="besuch" id="besuch" role="status" hidden></div>
   </main>
   <aside>
     <section class="panel" id="panel"></section>
@@ -54,22 +62,21 @@
 </div>
 <div id="busy" class="hidden"><div class="spinner"></div></div>
 
-<script src="js/config.js?v=138"></script>
-<script src="js/server-logic.js?v=138"></script>
-<script src="js/mock.js?v=138"></script>
-<script src="js/ufer_spr.js?v=138"></script>
-<script src="js/badges.js?v=138"></script>
-<script src="js/sounds-data.js?v=138"></script>
-<script src="js/sfx.js?v=138"></script>
-<script src="js/art.js?v=138"></script>
-<script src="js/workers.js?v=138"></script>
-<script src="js/overlay.js?v=138"></script>
-<script src="js/icons.js?v=138"></script>
-<script src="js/scene.js?v=138"></script>
-<script src="js/interior.js?v=138"></script>
-<script src="js/badgeroom.js?v=138"></script>
-<script src="js/leitraum.js?v=138"></script>
-<script src="js/leitstand.js?v=138"></script>
-<script src="js/game.js?v=138"></script>
+<script src="js/config.js?v=142"></script>
+<script src="js/server-logic.js?v=142"></script>
+<script src="js/mock.js?v=142"></script>
+<script src="js/ufer_spr.js?v=142"></script>
+<script src="js/badges.js?v=142"></script>
+<script src="js/sfx.js?v=142"></script>
+<script src="js/art.js?v=142"></script>
+<script src="js/workers.js?v=142"></script>
+<script src="js/overlay.js?v=142"></script>
+<script src="js/icons.js?v=142"></script>
+<script src="js/scene.js?v=142"></script>
+<script src="js/interior.js?v=142"></script>
+<script src="js/badgeroom.js?v=142"></script>
+<script src="js/leitraum.js?v=142"></script>
+<script src="js/leitstand.js?v=142"></script>
+<script src="js/game.js?v=142"></script>
 </body>
 </html>

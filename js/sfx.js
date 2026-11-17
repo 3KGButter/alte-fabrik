@@ -26,11 +26,20 @@ const SFX = (() => {
     loadSamples();
   }
   // ---------- Aufnahmen (CC0/CC BY, siehe sounds/QUELLEN.md): werden beim ersten Tippen dekodiert; bis dahin bzw. falls etwas fehlt, klingen die erzeugten Töne ----------
-  const BUF = {};
+  const BUF = {}, DEC = {};
+  /* v142: Die Aufnahmen (sounds-data.js, gut 1 MB) kommen erst nach dem Start nach, damit die Fabrik schneller da ist. Bis dahin klingen die erzeugten Töne. */
+  const VQ = ((document.currentScript && document.currentScript.src) || '').split('?')[1] || '';
+  let holt = false;
+  function holeAufnahmen() { if (holt || window.SFX_DATA) return; holt = true; const el = document.createElement('script'); el.src = 'js/sounds-data.js' + (VQ ? '?' + VQ : ''); el.async = true; el.onload = () => { if (ac) loadSamples(); }; el.onerror = () => { holt = false; }; document.head.appendChild(el); }
+  if (document.readyState === 'complete') setTimeout(holeAufnahmen, 300); else addEventListener('load', () => setTimeout(holeAufnahmen, 300));
+  const LOOP_HUM = { grillen_schleife: 'crickets', wasser_see_schleife: 'water', duesen_schleife: 'jet', maschinenraum_brummen_schleife: 'reactor' };
+  function tauscheHum(k) { const L = live[k]; if (!L) return; delete live[k];   /* läuft schon als erzeugter Ton: weich ausblenden, beim nächsten Bild startet die Aufnahme */
+    try { L.g.gain.cancelScheduledValues(ac.currentTime); L.g.gain.setTargetAtTime(0, ac.currentTime, .3); } catch (e) {}
+    setTimeout(() => { L.nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { L.g.disconnect(); } catch (e) {} }, 1500); }
   function loadSamples() {
     const D = window.SFX_DATA || {};
-    Object.keys(D).forEach(k => { try { const b64 = D[k].split(',')[1], bin = atob(b64), arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-      const pr = ac.decodeAudioData(arr.buffer, b => { BUF[k] = b; }, () => {}); if (pr && pr.catch) pr.catch(() => {}); } catch (e) {} }); }
+    Object.keys(D).forEach(k => { if (DEC[k]) return; DEC[k] = 1; try { const b64 = D[k].split(',')[1], bin = atob(b64), arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const pr = ac.decodeAudioData(arr.buffer, b => { BUF[k] = b; if (LOOP_HUM[k]) tauscheHum(LOOP_HUM[k]); }, () => {}); if (pr && pr.catch) pr.catch(() => {}); } catch (e) {} }); }
   function sample(dst, t, name, o) {   // eine Aufnahme abspielen; o: rate, lp (Tiefpass), vol
     const b = BUF[name]; if (!b) return false; o = o || {}; const s = ac.createBufferSource(); s.buffer = b; s.playbackRate.value = (o.rate || 1) * (1 + (Math.random() - .5) * (o.vary === undefined ? .08 : o.vary));
     let n = s; if (o.lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; s.connect(f); n = f; } const g = ac.createGain(); g.gain.value = o.vol === undefined ? 1 : o.vol; n.connect(g); g.connect(dst); s.start(t, o.off || 0); return true; }   /* off: Vorlauf der Aufnahme überspringen (Sekunden) */

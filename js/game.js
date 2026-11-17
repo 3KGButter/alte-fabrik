@@ -467,10 +467,18 @@
   function freieQuests() { const frei = {}; let kette = true;
     D.quests.forEach(q => { if (q.ms === 'MS5') return; if (!q.done && kette) frei[q.n] = true; if (q.hq) kette = kette && q.done; });
     return frei; }
+  function stufeHTML() {   /* dünne Leiste: jetzige Stufe und wie weit es bis zur nächsten ist */
+    const u = D.user || {}, n = u.naechste, xp = Number(u.xp) || 0;
+    if (!u.level && !n) return '';
+    const name = `Stufe ${u.level || 0}${u.stufe ? ' · ' + esc(u.stufe) : ''}`;
+    if (!n) return `<div class="stufe"><div class="sl"><span>${name}</span><span>höchste Stufe erreicht</span></div><i class="strack"><i style="width:100%"></i></i></div>`;
+    const von = Number(n.von) || 0, pc = Math.max(0, Math.min(100, Math.round((xp - von) / Math.max(1, n.ab - von) * 100)));
+    return `<div class="stufe" title="${fmt(xp)} XP · Stufe ${n.level} ab ${fmt(n.ab)} XP"><div class="sl"><span>${name}</span><span>noch <b>${fmt(n.ab - xp)} XP</b> bis Stufe ${n.level}</span></div><i class="strack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}" aria-label="Fortschritt bis Stufe ${n.level}"><i style="width:${pc}%"></i></i></div>`;
+  }
   function questsHTML() {
     const open = unclaimed();
     const freiMap = freieQuests(), questFrei = q => !!freiMap[q.n], nFrei = Object.keys(freiMap).length;
-    let h = `<h2>Questbuch</h2><p>${D.quests.filter(q => q.done).length} von ${D.quests.length} Quests erledigt.${nFrei ? ` <span class="qhin"><span class="qpfeil" aria-hidden="true"></span>${nFrei} ${nFrei === 1 ? 'Quest ist' : 'Quests sind'} jetzt möglich.</span>` : ''}</p>`;
+    let h = `<h2>Questbuch</h2>${stufeHTML()}<p>${D.quests.filter(q => q.done).length} von ${D.quests.length} Quests erledigt.${nFrei ? ` <span class="qhin"><span class="qpfeil" aria-hidden="true"></span>${nFrei} ${nFrei === 1 ? 'Quest ist' : 'Quests sind'} jetzt möglich.</span>` : ''}</p>`;
     if (open.length) { const g = open.reduce((s, q) => s + Math.round(q.xp * R().gearsPerXp), 0); h += `<div class="btns"><button class="btn main" data-act="claim">${open.length} Kiste${open.length > 1 ? 'n' : ''} öffnen ${costHTML({ gears: g })}</button></div>`; }
     const byMs = {}; D.quests.forEach(q => (byMs[q.ms] = byMs[q.ms] || []).push(q));
     Object.keys(byMs).forEach(ms => {
@@ -520,7 +528,7 @@
     h += `<section class="catsec ${cls}"><h3>${title}</h3><div class="grid2">`;
     Object.keys(c).filter(id => isOut(c[id]) === outSec).forEach(id => {
       const d = c[id], open = areaOpen(d.area), owned = d.kind !== 'place' && st.owned && st.owned[id], cnt = (st.items && st.items[id]) || 0;
-      h += `<div class="cat"><div class="catimg"><canvas data-prev="${id}" width="1" height="1"></canvas></div><b>${esc(d.name)}</b>${d.where ? (d.where === 'aussen' ? '' : `<span class="small muted">${WHERE_TXT[d.where]}${d.only ? ', nur Pförtnerhaus' : ''}</span>`) : ''}${open ? costHTML(d.price) : '<span class="small">🔒 ab ' + esc(msOf(d.area)) + '</span>'}
+      h += `<div class="cat"><div class="catimg${d.where === 'wand' ? ' wand' : ''}"><canvas data-prev="${id}" width="1" height="1"></canvas></div><b>${esc(d.name)}</b>${d.where ? (d.where === 'aussen' ? '' : `<span class="small muted">${WHERE_TXT[d.where]}${d.only ? ', nur Pförtnerhaus' : ''}</span>`) : ''}${open ? costHTML(d.price) : '<span class="small">🔒 ab ' + esc(msOf(d.area)) + '</span>'}
         <div class="catbtns">${owned ? ((S().hidden || {})[id] ? `<span class="box done">✓ Gekauft</span><button class="btn x icon place" data-act="zeigen" data-id="${id}" data-on="1" aria-label="${esc(d.name)} wieder aufstellen" title="Wieder aufstellen">${ICO_PLACE}</button>` : '<span class="box done">✓ Gekauft</span>') : `<button class="btn x icon ${open && canAfford(d.price) ? 'good' : ''}" data-act="buy" data-id="${id}" ${open && canAfford(d.price) ? '' : 'disabled'} aria-label="${esc(d.name)} kaufen" title="Kaufen">${ICO_BUY}</button>`}
         ${cnt ? `<button class="btn x icon place" data-act="place" data-id="${id}" aria-label="${esc(d.name)} aufstellen, ${cnt} vorhanden" title="Aufstellen">${ICO_PLACE}<span class="n">${cnt}</span></button>` : ''}${cnt || owned ? `<button class="btn x icon" data-act="sell" data-id="${id}" aria-label="${esc(d.name)} verkaufen" title="Verkaufen">${ICO_SELL}</button>` : ''}</div>${sellOpen === id && (cnt || owned) ? `<div class="sellq">${costHTML(verkaufswert_(d.price))}<button class="btn x sellbtn" data-act="sellok" data-id="${id}">${ICO_SELL}Verkaufen</button></div>` : ''}</div>`;
     });
@@ -757,6 +765,30 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').classList.contains('hidden')) closeModal(); else if (e.key === 'Escape' && placeItem) stopPlace(); });
 
   // ---------- Anmeldung ----------
+  /* „Seit deinem letzten Besuch“: Vergleich mit dem Stand, den dieses Gerät zuletzt gesehen hat (pro Gamertag) */
+  let zTimer = 0;
+  function besuchZettel() {
+    if (!D || !D.user) return;
+    const key = tagKey('besuch'); let prev = null; try { prev = JSON.parse(store.get(key)); } catch (e) {}
+    const cur = { xp: Number(D.user.xp) || 0, level: Number(D.user.level) || 0, done: D.quests.filter(q => q.done).map(q => q.n) };
+    store.set(key, JSON.stringify(cur));
+    const neu = [];
+    if (prev && Array.isArray(prev.done)) {
+      const dxp = cur.xp - (Number(prev.xp) || 0); if (dxp > 0) neu.push(`<b>+${fmt(dxp)} XP</b>`);
+      if (cur.level > (Number(prev.level) || 0) && D.user.stufe) neu.push(`neue Stufe: <b>${esc(D.user.stufe)}</b>`);
+      const q = cur.done.filter(n => prev.done.indexOf(n) < 0);
+      if (q.length === 1) neu.push(`Quest <b>„${esc(short(q[0]))}“</b> erledigt`); else if (q.length > 1) neu.push(`<b>${q.length} Quests</b> erledigt`);
+    }
+    const u = unclaimed().length, kisten = u ? `<b>${u} Kiste${u > 1 ? 'n' : ''}</b> am Lieferwagen` : '';
+    if (!neu.length && !kisten) return;
+    const el = $('besuch');
+    el.innerHTML = neu.length ? `<span class="zkopf">Seit deinem letzten Besuch</span><span class="zinh">${neu.concat(kisten ? [kisten] : []).join('<i aria-hidden="true">·</i>')}</span>` : `<span class="zinh">Der Lieferwagen ist da: ${kisten.replace(' am Lieferwagen', ' für dich')}!</span>`;
+    el.hidden = false; void el.offsetWidth; el.classList.add('show');
+    clearTimeout(zTimer); zTimer = setTimeout(zettelWeg, Math.max(5000, 2200 + neu.length * 1600));
+  }
+  function zettelWeg() { const el = $('besuch'); clearTimeout(zTimer); if (el.hidden) return; el.classList.remove('show'); zTimer = setTimeout(() => { el.hidden = true; }, 600); }
+  $('besuch').addEventListener('click', zettelWeg);
+
   async function doLogin(tag, pin, remember) {
     cred = { tag, pin };
     $('loginError').textContent = ''; $('btnLogin').disabled = true;
@@ -771,7 +803,7 @@
       }
       apply(r);
       $('login').classList.add('hidden'); $('app').classList.remove('hidden');
-      const u = unclaimed().length; if (u) setTimeout(() => toast(`Der Lieferwagen ist da: ${u} Kiste${u > 1 ? 'n' : ''} für dich!`), 600);
+      setTimeout(besuchZettel, 600);   /* Zettel unter der Symbolleiste: was seit dem letzten Besuch dazukam (ersetzt die Lieferwagen-Meldung) */
       return true;
     } catch (e) { console.error(e); $('loginError').textContent = 'Keine Verbindung zum Server.'; return false; }
     finally { $('btnLogin').disabled = false; }

@@ -91,6 +91,7 @@ const REGELN = {
     leuchtschild: { name: 'Leuchtschild',           price: { blech: 100, gewinde: 80, baugruppe: 40 }, area: 'ms4', kind: 'place', where: 'wand' },
     // drinnen auf den Boden
     pflanze:    { name: 'Große Zimmerpflanze',      price: { blech: 80 }, area: 'ms2', kind: 'place', where: 'boden' },
+    haengepflanze: { name: 'Hängepflanze auf Ständer', price: { blech: 80 }, area: 'ms2', kind: 'place', where: 'boden' },   // v140: Efeutute mit Ranken
     gitterbox:  { name: 'Gitterbox mit Werkstücken', price: { blech: 120 }, area: 'ms2', kind: 'place', where: 'boden' },
     werkzeugwagen: { name: 'Werkzeugwagen',         price: { blech: 60, dreh: 100 },   area: 'ms3', kind: 'place', where: 'boden' },
     werkbank:   { name: 'Werkbank mit Schraubstock', price: { blech: 60, fraes: 120 }, area: 'ms3', kind: 'place', where: 'boden' },
@@ -388,9 +389,17 @@ function kontext_(user) {
     bits = snap.done[user.tag] || '';
     prof = snap.profile[user.tag] || { xp: 0, level: 0, stufe: '', klasse: user.klasse };
   }
+  prof = Object.assign({}, prof, { naechste: naechsteStufe_(snap.levels, prof.xp) });   /* für die Fortschrittsleiste im Questbuch */
   const links = links_();
   const quests = snap.quests.map((q, i) => { const o = Object.assign({}, q, { done: bits.charAt(i) === '1' }); if (links[q.n]) o.url = links[q.n]; return o; });
   return kontextAusQuests_(quests, prof, snap.stand);
+}
+
+// Nächste Levelstufe über den aktuellen XP (aus der Leveltabelle des XP-Rechners), sonst null
+function naechsteStufe_(levels, xp) {
+  const n = (levels || []).filter(e => (parseInt(e.level, 10) || 0) > 0 && e.ab > (Number(xp) || 0)).sort((a, b) => a.ab - b.ab)[0];
+  const von = (levels || []).filter(e => e.ab <= (Number(xp) || 0)).reduce((m, e) => Math.max(m, e.ab), 0);   /* Beginn der jetzigen Stufe */
+  return n ? { ab: n.ab, von: von, level: parseInt(n.level, 10), stufe: n.stufe || '' } : null;
 }
 
 function kontextAusQuests_(quests, prof, stand) {
@@ -537,7 +546,7 @@ function antwort_(user, state, ctx) {
   return {
     ok: true,
     now: Date.now(),
-    user: { tag: user.tag, klasse: ctx.profile.klasse || user.klasse, xp: ctx.profile.xp, level: ctx.profile.level, stufe: ctx.profile.stufe },
+    user: { tag: user.tag, klasse: ctx.profile.klasse || user.klasse, xp: ctx.profile.xp, level: ctx.profile.level, stufe: ctx.profile.stufe, naechste: ctx.profile.naechste || null },
     quests: ctx.quests.map(q => ({ n: q.n, ms: q.ms, key: q.key, hq: q.hq, xp: q.xp, done: q.done, claimed: !!claimed[q.n], url: q.url || undefined })),   /* url: Adresse der Aufgabe in Mebis (Blatt „Links“), sonst nicht dabei */
     areas: ctx.areas,
     bossDefeated: ctx.bossDefeated,

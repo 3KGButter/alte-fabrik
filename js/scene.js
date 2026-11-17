@@ -28,9 +28,19 @@ const SCENE = (() => {
   const DECO = {
     laterne: LAMPPOST_ROWS(),
     bank: ['eeeeeeeeeeee', 'dddddddddddd', 'c..........c', 'eeeeeeeeeeee', 'c..........c', 'b..........b'],
-    blumen: ['.M.q.N.q.M.', 'MqNqMqNqMqN', 'oqopoqopoqo', 'cdddddddddc', 'cdcdcdcdcdc', 'bbbbbbbbbbb'],
+    blumen: (() => { const g = ART.Grid(16, 14), { sBox, sBall } = ART, GR = ['m', 'n', 'o', 'p', 'q', 'r'];   /* v140: Holzkübel mit Eisenband, üppige Bepflanzung, Ranken hängen über den Rand */
+      sBall(g, 8, 5, 7, 4, GR); sBall(g, 3, 6, 3, 2.5, GR); sBall(g, 13, 6, 3, 2.5, GR);
+      sBox(g, 1, 7, 14, 13, ['a', 'b', 'c', 'd', 'e', 'f'], .3); g.rect(1, 7, 14, 1, 'e'); g.rect(2, 7, 12, 1, 'f'); for (const x of [5, 9]) g.rect(x, 8, 1, 5, 'c'); g.rect(1, 10, 14, 1, 'X'); g.rect(1, 10, 14, 1, (i) => i < 3 ? 'Z' : i > 11 ? 'T' : 'Y'); g.set(3, 10, 'l'); g.set(12, 10, 'l');
+      for (const [x, y] of [[1, 8], [1, 9], [0, 10], [14, 8], [15, 9], [15, 11], [11, 8]]) g.set(x, y, (x + y) % 2 ? 'o' : 'p');   /* Ranken über den Rand */
+      for (const [x, y, c, m] of [[4, 2, 'M', 'N'], [8, 1, 'F', 'E'], [12, 3, 'J', 'H'], [6, 5, 'J', 'H'], [10, 4, 'M', 'N'], [2, 5, 'F', 'E'], [13, 6, 'M', 'N'], [9, 6, 'F', 'E']]) { g.set(x, y, m); g.set(x - 1, y, c); g.set(x + 1, y, c); g.set(x, y - 1, c); g.set(x, y + 1, c); }
+      return g.rows(); })(),
     schild: ['bbbbbbbbbbbbbb', 'bEEEEEEEEEEEEb', 'bEFCFFCFCFFCEb', 'bEEEEEEEEEEEEb', 'bbbbbbbbbbbbbb', '..c........c..', '..c........c..', '..c........c..'],
-    fass: ['.yzy..utu.', 'yAzzyuvuut', 'yzzzyuuuut', 'xxxxxsssss', 'yzzzyuuuut', '.yyy..ttt.'],
+    fass: (() => { const g = ART.Grid(21, 16), { sBox, sCylV } = ART, WD = ['a', 'b', 'c', 'd', 'e', 'f'];   /* v140: große Holzkiste mit Strebe, kleine Kiste obenauf, stehendes blaues Fass mit Reifen */
+      sBox(g, 0, 6, 10, 15, WD, .25); g.rect(0, 6, 11, 1, 'e'); for (const y of [9, 12]) g.rect(1, y, 9, 1, 'c'); for (let i = 0; i < 8; i++) { g.set(1 + i, 14 - i, 'd'); g.set(2 + i, 14 - i, 'e'); } g.rect(0, 6, 1, 10, 'b'); g.rect(10, 6, 1, 10, 'a'); g.set(1, 7, 'h'); g.set(9, 7, 'h'); g.set(1, 14, 'h'); g.set(9, 14, 'h');
+      sBox(g, 2, 1, 8, 5, WD, .45); g.rect(2, 1, 7, 1, 'f'); g.rect(3, 3, 5, 1, 'c'); g.rect(4, 2, 3, 1, 'u'); g.rect(4, 2, 1, 1, 'v');   /* kleine Kiste mit rotem Etikett */
+      sCylV(g, 12, 3, 20, 15, ['x', 'x', 'y', 'z', 'A']); for (const [x, y] of [[12, 3], [20, 3], [12, 15], [20, 15]]) g.set(x, y, '.');
+      g.rect(13, 3, 7, 1, 'z'); g.rect(14, 3, 3, 1, 'A'); g.set(18, 3, 'x'); for (const y of [5, 13]) { g.rect(12, y, 9, 1, (i) => i < 3 ? 'Z' : i > 6 ? 'T' : 'Y'); } g.rect(12, 9, 9, 1, 'y'); g.rect(14, 7, 3, 4, 'F'); g.rect(15, 8, 1, 2, 'a');   /* Deckel mit Spund, zwei Reifen, Gefahrenaufkleber */
+      return g.rows(); })(),
     brunnen: (() => { const g = ART.Grid(17, 15), { sBox } = ART;   /* Steinbrunnen: breites Becken, schlanke Säule, obere Schale; Wasserbögen fallen frei ins Becken */
       g.set(8, 0, 'B'); g.set(8, 1, 'A'); g.set(7, 1, 'B'); g.set(9, 1, 'B');
       g.rect(4, 2, 9, 1, 'j'); g.set(4, 2, 'l'); g.set(12, 2, 'h'); g.rect(5, 3, 7, 1, 'i'); g.set(5, 3, 'j'); g.set(11, 3, 'g'); g.rect(6, 4, 5, 1, 'h'); g.rect(6, 2, 5, 1, 'A'); g.set(7, 2, 'B');
@@ -163,7 +173,15 @@ const SCENE = (() => {
     for (let y = 3; y < 11; y++) g.set(3, y, 'b'); g.rect(0, 3, 3, 2, 'u'); g.set(1, 4, 'J');
     return g.rows(); })());
   const PBENCH = ART.buildSprite(['eeeeeeeeeee', 'cdddddddddc', 'b.........b', 'eeeeeeeeeee', 'cdddddddddc', 'b.b.....b.b', 'a.a.....a.a']);
-  const BOAT = ART.buildSprite(['........c.....c..', '.........c...c...', 'feeeeeeeeeeeeeed..', '.dcdcdcdcdcdcdcb..', '..bbbbbbbbbbbbb...']);
+  /* Ruderboot (v140): 28 x 8, Bug links (fährt nach links). Holzdollbord, petrolfarbener Rumpf mit Plankenfugen und heller Zierlinie, dunkler Kiel.
+     Ruderer, Ruder und Laterne werden in jedem Bild dazugezeichnet (Ruderschlag). */
+  const BOAT = ART.buildSprite((() => { const g = ART.Grid(28, 8);
+    const top = x => x < 2 ? 0 : x < 4 ? 1 : x > 25 ? 1 : 2, bot = x => x < 3 ? 3 : x < 6 ? 5 : x > 24 ? 5 : x > 21 ? 6 : 7;
+    for (let x = 0; x < 28; x++) { const t = top(x), b = bot(x); for (let y = t; y <= b; y++) { const k = y - t;
+      g.set(x, y, k === 0 ? (x < 3 ? 'f' : 'e') : y === b ? 'O' : y === b - 1 ? 'O' : k === 2 && x > 2 && x < 26 ? 'B' : (y === 4 && x % 7 === 3) ? 'O' : (x + y) % 9 === 0 ? 'O' : k === 1 ? 'Q' : 'P'); } }
+    g.rect(26, 1, 2, 5, 'P'); g.set(27, 1, 'd'); g.set(26, 1, 'e'); g.rect(27, 2, 1, 4, 'O');   /* Spiegelheck */
+    g.set(0, 0, 'd'); g.set(1, 0, 'e'); g.set(5, 3, 'J'); g.set(6, 3, 'J');   /* Bugspitze, kleines Namensschild */
+    return g.rows(); })());
   const PLANTER = ART.buildSprite(['.p.q.N.q.M.p.', 'oqopMqopqNoqo', 'nonoonnonoono', 'cdddddddddddc', 'bcccccccccccb']);
   // Positionen im Werkshof (Mitte x, Unterkante)
   const POS = {
@@ -544,20 +562,6 @@ const SCENE = (() => {
           else { P2(0, y - b, 3, 2, '#f2d86a'); P2(2, y - 1 - b, 1, 1, '#f2d86a'); P2(3, y - b, 1, 1, '#e8a83a'); }
           if (Math.floor(time * 2 + i) % 3 === 0) { ctx.globalAlpha = .3; P2(-3, y + 1, 2, 1, '#e8f6ff'); ctx.globalAlpha = 1; } } } }
     const PX = 44;   // Steg: kurz, gerade ins Wasser. Muss VOR dem Angler stehen: stand die Zeile weiter unten, brach das Bild ab, sobald nachts der Angler saß (Steg, Boote, Hinweise fehlten)
-    if (ANG) {   // nachts: Angler sitzt am Stegende, Laterne neben sich, Schwimmer zuckt ab und zu
-      const ax = PX + 1, ay = WATER + 7, sp = WORKERS.frontSit(ANG ? ANG.v : 3)[0], u = time % 23, bite = u > 17 && u < 18.4, bx = PX + 15, by = WATER + 19 + (bite && Math.floor(u * 6) % 2 ? 1 : 0);
-      ctx.save(); ctx.filter = 'brightness(' + Math.round((1 - n * .45) * 100) + '%)'; ART.blit(ctx, sp, ax, ay, null, false); ctx.restore();
-      ctx.globalAlpha = .8; for (let i = 0; i <= 8; i++) R(ctx, ax + 3 + i, ay - 9 - Math.round(i * .6), 1, 1, '#7f5236'); ctx.globalAlpha = .35; for (let yy = ay - 14; yy < by; yy += 2) R(ctx, Math.round(ax + 11 + (bx - ax - 11) * (yy - ay + 14) / (by - ay + 14)), yy, 1, 1, '#d8d2cc'); ctx.globalAlpha = 1;
-      R(ctx, bx, by, 1, 1, '#ff5a4a'); R(ctx, bx, by + 1, 1, 1, '#f4ecdc'); if (bite) { ctx.globalAlpha = .5; R(ctx, bx - 2, by + 2, 5, 1, '#e8f6ff'); ctx.globalAlpha = 1; } SFX.edge('bite', bite, 'plop', { pan: SFX.panX(bx), vol: .7 });
-      R(ctx, PX - 4, ay - 3, 2, 3, '#ffd56a'); R(ctx, PX - 4, ay - 4, 2, 1, '#3e2731'); glow(ctx, { x: PX - 4, y: ay - 3, w: 2, h: 3, c: '#ffd56a' }, n); }
-    {   // nachts: Ruderboot mit Laterne zieht langsam vorbei (beim Start der Runde entschieden, fährt immer ganz aus dem Bild)
-      const P = 150, u = (time + 40) % P, cyR = Math.floor((time + 40) / P); if (RB.cyc !== cyR) { RB.cyc = cyR; RB.night = n > .55 && !wet; }   /* kein Ruderboot bei Regen */ if (RB.night && u < 110) { const x = Math.round(W + 20 - u * (W + 40) / 110), y = WATER + 25, st4 = Math.floor(u / 2.2) % 2;
-        ctx.globalAlpha = .25; R(ctx, x - 8, y + 1, 18, 2, '#0b1030'); ctx.globalAlpha = 1;
-        tinted(ctx, BOAT, x - 8, y - 5, n * .45); R(ctx, x, y - 8, 2, 3, '#2a2440'); R(ctx, x, y - 9, 2, 1, '#5c3a2e');
-        R(ctx, x - 3 + st4 * 2, y - 4, 1, 1, '#7f5236'); R(ctx, x + 4 - st4 * 2, y - 4, 1, 1, '#7f5236');
-        if (st4) { ctx.globalAlpha = .5; R(ctx, x - 6, y - 1, 2, 1, '#e8f6ff'); R(ctx, x + 8, y - 1, 2, 1, '#e8f6ff'); ctx.globalAlpha = 1; }
-        SFX.edge('oar', st4 === 1, 'oar', { pan: SFX.panX(x), vol: .5 });
-        R(ctx, x + 6, y - 7, 1, 2, '#ffd56a'); glow(ctx, { x: x + 6, y: y - 7, w: 1, h: 2, c: '#ffd56a' }, n * .9); ctx.globalAlpha = n * .35; R(ctx, x + 5, y + 2, 3, 1, '#ffd56a'); R(ctx, x + 6, y + 4, 1, 1, '#ffd56a'); ctx.globalAlpha = 1; } }
     // Steg und Ruderboot vorne im Wasser
     ctx.globalAlpha = .22; R(ctx, PX - 5, WATER + 2, 12, 14, '#0b1030'); ctx.globalAlpha = 1;
     tinted(ctx, PIER, PX - 6, WATER - 3, n * .5);
@@ -565,6 +569,32 @@ const SCENE = (() => {
       const q = 1 - a.t / (a.tt || 1), out = q < .3, back = q > .7, dep = out ? q / .3 : back ? (1 - q) / .3 : 1, by = ART.PROM + 4 + Math.round(dep * (WATER + 7 - ART.PROM - 4));
       const F = WORKERS.front(a.v, back), fr = (out || back) ? F[Math.floor(Math.abs(by - ART.PROM) / 2) % 4] : F[4];
       ctx.save(); if (n > .01) ctx.filter = 'brightness(' + Math.round((1 - n * .5) * 100) + '%)'; ART.blit(ctx, fr, PX, by + 1, null, false); ctx.restore(); }
+    if (ANG) {   // nachts: Angler sitzt am Stegende, Laterne neben sich, Schwimmer zuckt ab und zu
+      const ax = PX + 1, ay = WATER + 7, sp = WORKERS.frontSit(ANG ? ANG.v : 3)[0], u = time % 23, bite = u > 17 && u < 18.4, bx = PX + 15, by = WATER + 19 + (bite && Math.floor(u * 6) % 2 ? 1 : 0);
+      ctx.save(); ctx.filter = 'brightness(' + Math.round((1 - n * .45) * 100) + '%)'; ART.blit(ctx, sp, ax, ay, null, false); ctx.restore();
+      ctx.globalAlpha = .8; for (let i = 0; i <= 8; i++) R(ctx, ax + 3 + i, ay - 9 - Math.round(i * .6), 1, 1, '#7f5236'); ctx.globalAlpha = .35; for (let yy = ay - 14; yy < by; yy += 2) R(ctx, Math.round(ax + 11 + (bx - ax - 11) * (yy - ay + 14) / (by - ay + 14)), yy, 1, 1, '#d8d2cc'); ctx.globalAlpha = 1;
+      R(ctx, bx, by, 1, 1, '#ff5a4a'); R(ctx, bx, by + 1, 1, 1, '#f4ecdc'); if (bite) { ctx.globalAlpha = .5; R(ctx, bx - 2, by + 2, 5, 1, '#e8f6ff'); ctx.globalAlpha = 1; } SFX.edge('bite', bite, 'plop', { pan: SFX.panX(bx), vol: .7 });
+      R(ctx, PX - 4, ay - 3, 2, 3, '#ffd56a'); R(ctx, PX - 4, ay - 4, 2, 1, '#3e2731'); glow(ctx, { x: PX - 4, y: ay - 3, w: 2, h: 3, c: '#ffd56a' }, n); }
+    {   // nachts: Ruderboot mit Laterne zieht langsam vorbei (beim Start der Runde entschieden, fährt immer ganz aus dem Bild). v140: größeres Boot, Ruderer mit sichtbarem Ruderschlag; vor dem Steg gezeichnet
+      const P = 150, u = (time + 40) % P, cyR = Math.floor((time + 40) / P); if (RB.cyc !== cyR) { RB.cyc = cyR; RB.night = n > .55 && !wet; }   /* kein Ruderboot bei Regen */
+      if (RB.night && u < 110) { const x = Math.round(W + 30 - u * (W + 60) / 110), y = WATER + 26, bx0 = x - 14, top = y - 6;
+        const ph = (u * .55) % 1, drive = ph < .55, q = drive ? ph / .55 : (ph - .55) / .45, sw = drive ? -6 + q * 12 : 6 - q * 12, lift = drive ? 0 : Math.round(Math.sin(q * Math.PI) * 2);   /* Durchzug: Blatt im Wasser von vorn nach hinten; Freilauf: Blatt in der Luft zurück */
+        const dk = 1 - n * .4, col = c => dk < 1 ? rgb(hx(c).map(v => v * dk)) : c;
+        ctx.globalAlpha = .25; R(ctx, bx0 + 1, y + 2, 28, 2, '#0b1030'); ctx.globalAlpha = .35; for (let i = 1; i < 6; i++) R(ctx, bx0 + 27 + i * 3, y + 1 + (i % 2), 2, 1, '#e8f6ff'); ctx.globalAlpha = 1;   /* Schatten und Kielwasser hinter dem Heck */
+        const ox = bx0 + 15, oy = top + 2, blx = ox + sw, bly = y + 3 - lift, hdx = ox - Math.round(sw * .45), hdy = oy - 2;   /* Dolle, Ruderblatt, Griff */
+        for (let i = 0; i <= 10; i++) { const t2 = i / 10; R(ctx, Math.round(hdx + (blx - hdx) * t2), Math.round(hdy + (bly - hdy) * t2), 1, 1, col('#a5703f')); }   /* Ruder hinter dem Bootsrand (fernes Ruder) */
+        { const lean = Math.round(-sw * .25), sx = ox + 1 + lean, sy = top - 8;   /* Ruderer sitzt mit Blick zum Heck (rechts), lehnt sich im Takt vor und zurück */
+          R(ctx, sx, sy, 4, 2, col('#b8474b')); R(ctx, sx + 1, sy - 1, 2, 1, col('#e0705a'));   /* Mütze */
+          R(ctx, sx, sy + 2, 4, 2, col('#f0c09a')); R(ctx, sx + 3, sy + 2, 1, 1, col('#3e2731')); R(ctx, sx, sy + 3, 1, 1, col('#c88a6a'));   /* Gesicht */
+          R(ctx, sx - 1, sy + 4, 5, 5, col('#e8a83a')); R(ctx, sx - 1, sy + 4, 1, 5, col('#c07a2a')); R(ctx, sx + 3, sy + 5, 1, 4, col('#f7d86a'));   /* Ölzeug-Jacke */
+          const hx2 = hdx + 1, hy2 = hdy + 1; for (let i = 0; i <= 4; i++) R(ctx, Math.round(sx + 3 + (hx2 - sx - 3) * i / 4), Math.round(sy + 5 + (hy2 - sy - 5) * i / 4), 1, 1, col('#c07a2a')); R(ctx, hx2, hy2, 2, 1, col('#f0c09a')); }   /* Arm zum Griff */
+        tinted(ctx, BOAT, bx0, top, n * .45);
+        for (let i = 0; i <= 12; i++) { const t2 = i / 12; R(ctx, Math.round(hdx + (blx - hdx) * t2), Math.round(hdy + 1 + (bly - hdy - 1) * t2), 1, 1, col('#cf9a5c')); }   /* nahes Ruder vor dem Bootsrand */
+        R(ctx, blx - 1, bly, 3, 2, col('#7f5236')); R(ctx, blx - 1, bly, 3, 1, col('#cf9a5c'));   /* Ruderblatt */
+        if (drive) { ctx.globalAlpha = .55; R(ctx, blx - 2 - Math.round(q * 2), bly + 2, 2 + Math.round(q * 3), 1, '#e8f6ff'); ctx.globalAlpha = 1; }   /* Wirbel am Blatt */
+        SFX.edge('oar', drive && q < .15, 'oar', { pan: SFX.panX(x), vol: .55 });
+        const lx = bx0 + 25; R(ctx, lx, top - 7, 1, 8, col('#5c3a2e')); R(ctx, lx - 1, top - 8, 3, 1, col('#3e2731')); R(ctx, lx - 1, top - 7, 3, 3, '#ffd56a'); R(ctx, lx, top - 6, 1, 1, '#fff3c0');   /* Laterne am Heck */
+        glow(ctx, { x: lx - 1, y: top - 7, w: 3, h: 3, c: '#ffd56a' }, n * .9); ctx.globalAlpha = n * .35; R(ctx, lx - 1, y + 3, 3, 1, '#ffd56a'); R(ctx, lx, y + 5, 1, 1, '#ffd56a'); R(ctx, lx - 2, y + 7, 2, 1, '#ffd56a'); ctx.globalAlpha = 1; } }   /* Spiegelung der Laterne */
     {   // Raddampfer: kommt selten, legt kurz am unteren Ende des Stegs an (ohne zu wenden) und fährt mit der Strömung weiter
       const P = 150; let t2 = time % P; const stopX = PX + 13, y = WATER + 27, cyS = Math.floor(time / P);   /* legt so an, dass der Rumpf das Stegende überdeckt */
       if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5 && !gew; }   /* fährt nur am Tag und nicht bei Gewitter (beim Start der Runde entschieden) */
