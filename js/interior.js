@@ -433,7 +433,7 @@ const INNER = (() => {
   // riesige dunkle Fäuste, kurze gegliederte Beine, orange Versorgungsschläuche über den Schultern
   function mechaFront(stage, p) {
     p = p || {}; const B = p.bob || 0, hd = p.head || 0, sw = p.swing || 0, rz = p.raise || 0, awake = p.awake === undefined ? stage >= 6 : p.awake;
-    const rzOf = s => s < 0 ? (p.rL === undefined ? rz : p.rL) : (p.rR === undefined ? rz : p.rR), swOf = s => s * sw + (s > 0 ? (p.wv || 0) : 0);   /* Arme einzeln heben, rechter Arm winkt */
+    const rzOf = s => p.schub ? 0 : s < 0 ? (p.rL === undefined ? rz : p.rL) : (p.rR === undefined ? rz : p.rR), swOf = s => p.schub ? s * 3 : s * sw + (s > 0 ? (p.wv || 0) : 0);   /* v158: schub = Handflächen nach unten wie Schubdüsen */   /* Arme einzeln heben, rechter Arm winkt */
     const g = Grid(90, 100), CX = 45;   /* 4 px kürzer als früher: kräftige Beine wie draußen, nicht zu kurz */
     const SH = ['g', 'h', 'i', 'j', 'l', 'H'], DK = ['U', 'x', 'T', 'X', 'y', 'Y'], CB = ['a', 'b', 'c', 'd', 'e'];
     const LX = -.55, LY = -.65, LZ = .52, BY = [[0, .5], [.75, .25]];
@@ -461,7 +461,10 @@ const INNER = (() => {
       ball(CX, 47 + B, 20, 17, DK); for (let y = 52; y < 62; y += 2) g.rect(CX - 10, y + B, 21, 1, 'U');
       sym(s => { box(s < 0 ? CX - 19 : CX + 12, 40 + B, s < 0 ? CX - 12 : CX + 19, 56 + B, DK, 1); for (let y = 42; y < 56; y += 4) g.set(X(s, 16), y + B, 'Y'); });   // seitliche Panzerplatten mit Nieten
       box(CX - 10, 38 + B, CX + 10, 52 + B, SH, 1); g.rect(CX - 10, 45 + B, 21, 1, 'h'); for (const x of [CX - 8, CX + 8]) { g.set(x, 40 + B, 'g'); g.set(x, 50 + B, 'g'); }
-      const cy = 46 + B; for (let y = -4; y <= 4; y++) for (let x = -4; x <= 4; x++) { const d = x * x + y * y; if (d > 17) continue; g.set(CX + x, cy + y, d <= 2 ? (awake ? 'G' : 'h') : d <= 7 ? (awake ? 'W' : 'g') : d <= 12 ? (awake ? 'V' : 'U') : 'C'); }
+      /* v158: größerer Energiekern mit dunkler Fassung und Glanzpunkt, pulsiert (p.core 0..2) */
+      const cy = 46 + B, cp = p.core === undefined ? 1 : p.core, CR = awake ? [['W', 'W', 'V', 'C'], ['G', 'W', 'V', 'V'], ['G', 'G', 'W', 'V']][cp] : ['h', 'g', 'U', 'U'];
+      for (let y = -5; y <= 5; y++) for (let x = -5; x <= 5; x++) { const d = x * x + y * y; if (d > 26) continue; g.set(CX + x, cy + y, d > 20 ? 'T' : d > 13 ? CR[3] : d > 6 ? CR[2] : d > 2 ? CR[1] : CR[0]); }
+      if (awake) g.set(CX - 2, cy - 2, 'J');
     }
     if (stage >= 3) {   // Arme mit riesigen Fäusten, Versorgungsschläuche
       sym(s => { const ax = X(s, 31), sx = swOf(s); box(ax - 5, 42 + B, ax + 5, 54 + B, DK, 1);                                    // Oberarm
@@ -471,6 +474,11 @@ const INNER = (() => {
           box(hx - 5, hy - 1, hx + 5, hy + 1, DK, 1); g.rect(hx - 4, hy - 1, 9, 1, 'D');
           const L = Math.min(Math.round(bl * 30), 96 - (hy + 2));   /* Klinge endet über dem Boden */ for (let y = 0; y < L; y++) { const w = y > L - 7 ? Math.max(0, Math.round((L - y) * .6)) : 4; for (let x = -w; x <= w; x++) g.set(hx + x, hy + 2 + y, x === -w ? 'J' : x < 0 ? 'H' : x === w ? 'i' : 'l'); }
           if (L > 4) g.rect(hx, hy + 2, 1, L - 5, 'j'); }   // Mittelgrat
+        else if (p.schub) {   /* v158: Hand flach nach unten gedreht, Finger angelegt, Düse in der Handfläche */
+          box(hx - 5, hy, hx + 5, hy + 2, DK, 1); g.rect(hx - 4, hy + 1, 9, 1, 'U');
+          box(hx - 8, hy + 3, hx + 8, hy + 7, SH, 1); g.rect(hx - 7, hy + 5, 15, 1, 'h'); g.set(hx - 6, hy + 4, 'D'); g.set(hx + 6, hy + 4, 'D');
+          for (const i of [-1, 0, 1]) { const x0 = hx + i * 5 - 1; box(x0, hy + 8, x0 + 3, hy + 9, SH, 1); }
+          box(hx - 5, hy + 10, hx + 5, hy + 11, DK, 1); g.rect(hx - 4, hy + 11, 9, 1, 'V'); g.rect(hx - 2, hy + 11, 5, 1, 'W'); g.set(hx, hy + 11, 'G'); }
         else {   // Roboterhand: Handgelenk, Handrücken mit Bolzen, drei Finger mit Gelenk, Daumen innen
           box(hx - 5, hy, hx + 5, hy + 2, DK, 1); g.rect(hx - 4, hy + 1, 9, 1, 'U');
           box(hx - 8, hy + 3, hx + 8, hy + 11, SH, 1); g.rect(hx - 7, hy + 7, 15, 1, 'h'); g.set(hx - 6, hy + 5, 'D'); g.set(hx + 6, hy + 5, 'D'); g.set(hx - 6, hy + 9, 'C'); g.set(hx + 6, hy + 9, 'C');
@@ -515,14 +523,36 @@ const INNER = (() => {
       box(hx - 4, hy, hx + 4, hy + 2, DK, o); box(hx - 6, hy + 3, hx + 6, hy + 11, SH, o); g.rect(hx - 5, hy + 7, 11, 1, o ? 'g' : 'h'); if (!o) g.set(hx - 4, hy + 5, 'D');
       [[hx - 6, 0, .2], [hx - 2, 1, 0], [hx + 2, 0, .35]].forEach(([x0, ext, dk]) => { const oo = o || dk > .3 ? 1 : 0; box(x0, hy + 12, x0 + 2, hy + 15, DK, oo); g.rect(x0, hy + 16, 3, 1, 'U'); box(x0, hy + 17, x0 + 2, hy + 19 + ext, dk > .1 && !o ? DK : SH, o); });   /* drei Finger mit Gelenk, der mittlere am längsten */
       box(hx + 4, hy + 8, hx + 6, hy + 14, DK, o); };
-    const arm = (sw, o) => { const ax = CX + 4; box(ax - 5, 42 + B, ax + 5, 54 + B, DK, o); g.rect(ax - 4, 47 + B, 9, 1, 'U');                     // Oberarm
-      const fx = ax + Math.round(sw * .5); box(fx - 7, 54 + B, fx + 7, 67 + B, SH, o); g.rect(fx - 6, 63 + B, 13, 2, o ? 'g' : 'h'); g.rect(fx - 6, 57 + B, 13, 1, o ? 'h' : 'j');   // Unterarm
-      hand(ax + sw, 68 + B, o); };
+    /* v158: Arm schwingt um Schulter und Ellenbogen (gedrehte Glieder statt verschobener Kästen).
+       Winkel gegen die Senkrechte, positiv = nach vorn (links). Der Unterarm schwingt etwas weiter und knickt leicht nach vorn. */
+    const seg = (px, py, len, w, ang, ramp, o, endDark) => { const s = Math.sin(ang), c = Math.cos(ang), ux = -s, uy = c, hw = w / 2;   // Achse nach unten, um ang gedreht
+      const x0 = Math.floor(px - len - w), x1 = Math.ceil(px + len + w), y0 = Math.floor(py - w), y1 = Math.ceil(py + len + w);
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const dx = x + .5 - px, dy = y + .5 - py, u = dx * ux + dy * uy, v = dx * uy - dy * ux;
+        if (u < 0 || u > len || Math.abs(v) > hw) continue; const nx = -v / hw; let l = -nx * .55 + Math.sqrt(Math.max(0, 1 - nx * nx)) * .5 - (o || 0);
+        if (u < 1.2) l += .3; if (u > len - 1.2 && endDark) l -= .4; if (Math.abs(v) > hw - 1) l -= .2; g.set(x, y, pick(ramp, l, x, y)); } };
+    const at = (px, py, len, ang) => [px - Math.sin(ang) * len, py + Math.cos(ang) * len];
+    const arm = (sw, o) => { const ax = CX + 4, sy = 42 + B, a1 = -sw / 12 * .26 + .08, a2 = a1 * 1.2 + .12;   /* sw > 0 = Hand nach hinten; leicht nach vorn gedreht */
+      const [ex, ey] = at(ax, sy, 12, a1), [wx, wy] = at(ex, ey, 12, a2);
+      seg(ax, sy, 13, 11, a1, DK, o, 1); { const [kx, ky] = at(ax, sy, 4, a1); g.set(Math.round(kx), Math.round(ky), 'U'); }        // Oberarm mit Fuge
+      { const [p1x, p1y] = at(ax + 6 * Math.cos(a1), sy + 6 * Math.sin(a1), 3, a1), [p2x, p2y] = at(ex + 6 * Math.cos(a1), ey + 6 * Math.sin(a1), -2, a1); g.rect(Math.round(p1x) - 1, Math.round(p1y) - 1, 2, 4, o ? 'T' : 'X'); ln(Math.round(p1x), Math.round(p1y) + 3, Math.round(p2x), Math.round(p2y), o ? 'D' : 'E'); }   // Kolben hinten
+      seg(ex, ey + 1, 13, 14, a2, SH, o, 1); { const [r1x, r1y] = at(ex, ey + 1, 9, a2); for (let i = -6; i <= 6; i++) g.set(Math.round(r1x + i * Math.cos(a2)), Math.round(r1y + i * Math.sin(a2)), o ? 'g' : 'h'); }   // Unterarm mit Fuge
+      ball(Math.round(ex), Math.round(ey), 6.5, 4.5, DK, o); g.set(Math.round(ex) - 1, Math.round(ey), o ? 'T' : 'D'); g.set(Math.round(ex), Math.round(ey), o ? 'U' : 'C');   // Ellenbogen
+      { const a3 = a2 + .12, px = Math.round(wx), py = Math.round(wy) + 1, snap = g.a.map(r => r.slice()); hand(px, py, o);   /* v158: Hand knickt im Handgelenk mit (um das Gelenk gedreht) */
+        const hp = []; for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.a[y][x] !== snap[y][x]) { hp.push([x, y, g.a[y][x]]); g.a[y][x] = snap[y][x]; }
+        const HM = {}; hp.forEach(([x, y, c]) => HM[x + ',' + y] = c); const ca = Math.cos(a3), sa = Math.sin(a3);
+        for (let y = py - 4; y <= py + 30; y++) for (let x = px - 26; x <= px + 26; x++) { const X2 = x + .5 - (px + .5), Y2 = y + .5 - py, dx = X2 * ca + Y2 * sa, dy = -X2 * sa + Y2 * ca, c = HM[Math.floor(px + .5 + dx) + ',' + Math.floor(py + dy)]; if (c) g.set(x, y, c); } }
+      if (!o) { const rim = [-2.2, -1.7, -1.2, -.7, -.25, .2].map(t => [Math.round(CX + 4 + Math.cos(t) * 14.5), Math.round(34 + B + Math.sin(t) * 13.5)]); cable([...rim, [Math.round(ex) + 8, Math.round(ey) - 2], [Math.round(wx) + 8, Math.round(wy) - 3]]); } };   /* Schlauch über den Rand des Schulterpanzers, dann hinten am Arm hinab */
+    const armSw = q => Math.cos((f / 8 + q) * Math.PI * 2 - .9) * 10;   /* v158: Arme pendeln gegen die Beine, aber eine Spur nachlaufend und schwächer */
     leg(LB.x, LB.up, .55);                                                                                                  // hinteres Bein im Schatten
-    arm(-LB.x, .5);                                                                                                            // hinterer Arm
+    arm(armSw(.5), .5);                                                                                                            // hinterer Arm
     ball(CX + 14, 33 + B, 11, 11, SH, .5);                                                                                  // hinterer Schulterpanzer
-    box(CX + 14, 34 + B, CX + 24, 58 + B, DK); for (let y = 37; y < 56; y += 4) g.rect(CX + 16, y + B, 7, 1, 'U');           // Tornister am Rücken
-    for (const x of [CX + 16, CX + 21]) { box(x, 22 + B, x + 2, 34 + B, DK); g.rect(x - 1, 21 + B, 5, 2, 'X'); }             // Auspuff
+    /* v158: Rückentank von der Seite: stehende Kapsel mit Spannbändern, Ventil, Lüftungsschlitzen und Schubdüse unten, kurzer schräger Auspuff oben */
+    ball(CX + 19, 37 + B, 6.5, 6, SH, .15); ball(CX + 19, 55 + B, 6.5, 5, SH, .3); box(CX + 13, 37 + B, CX + 25, 55 + B, SH, .15);
+    for (const y of [41, 51]) { g.rect(CX + 13, y + B, 13, 2, 'X'); g.rect(CX + 13, y + B, 13, 1, 'Y'); g.set(CX + 24, y + B, 'T'); }
+    for (let y = 44; y <= 48; y += 2) g.rect(CX + 17, y + B, 6, 1, 'T');
+    g.rect(CX + 14, 33 + B, 3, 2, 'D'); g.set(CX + 15, 32 + B, 'E');
+    box(CX + 16, 59 + B, CX + 22, 61 + B, DK); box(CX + 15, 62 + B, CX + 23, 64 + B, DK); g.rect(CX + 17, 64 + B, 5, 1, 'U');
+    for (let i = 0; i < 9; i++) { const x = CX + 20 + Math.round(i * .45), y = 31 + B - i; g.rect(x, y, 3, 1, i === 8 ? 'Y' : 'X'); g.set(x + 2, y, 'T'); } g.rect(CX + 23, 22 + B, 4, 1, 'Z');
     box(CX - 12, 60 + B, CX + 16, 68 + B, DK); g.rect(CX - 10, 62 + B, 6, 3, 'D'); g.rect(CX - 9, 62 + B, 4, 1, 'E');       // Becken
     ball(CX + 2, 47 + B, 17, 17, DK); for (let y = 54; y < 62; y += 2) g.rect(CX - 8, y + B, 20, 1, 'U');                  // Rumpf (dunkle Tonne)
     box(CX - 2, 39 + B, CX + 12, 56 + B, DK, -.1); for (const [x, y] of [[CX, 41], [CX + 10, 41], [CX, 54], [CX + 10, 54]]) g.set(x, y + B, 'Y');   // Seitenpanzer mit Nieten
@@ -533,15 +563,25 @@ const INNER = (() => {
     ball(CX + 4, 34 + B, 14, 13, SH); for (let a = 0; a < 6.28; a += .04) { const x = Math.round(CX + 4 + Math.cos(a) * 7), y = Math.round(36 + B + Math.sin(a) * 6); if (Math.sin(a) > -.2) g.set(x, y, 'h'); } g.set(CX - 2, 26 + B, 'H'); g.set(CX - 1, 25 + B, 'H');   // vorderer Schulterpanzer
     const hx = CX - 10, hy = 26 + B; ball(hx, hy, 10, 10, SH);                                                              // Kuppelkopf vor der Schulter
     for (let x = hx - 8; x <= hx + 8; x++) g.set(x, hy - 4 - Math.round(Math.sqrt(Math.max(0, 1 - ((x - hx) / 9) ** 2)) * 3), 'h');   // Plattenfuge
-    box(hx - 1, hy - 15, hx + 3, hy - 8, SH); g.rect(hx + 1, hy - 14, 1, 6, 'h'); g.rect(hx, hy - 16, 3, 1, awake ? 'u' : 'h'); g.set(hx + 1, hy - 17, awake ? 'u' : 'h');   // Sensorfinne
+    /* v158: von der Seite eine nach hinten gezogene Sensorfinne (von vorn schmal): Vorderkante hell, Hinterkante dunkel, Signallampe vorn oben */
+    /* v158: Spitze von der Seite: Sockel, schräger Sensormast mit roter Signalkugel, dünne Peitschenantenne dahinter */
+    box(hx - 1, hy - 11, hx + 4, hy - 9, SH); g.rect(hx - 1, hy - 9, 6, 1, 'g');
+    for (let j = 0; j < 6; j++) { const x = hx + 1 + Math.round(j * .35), y = hy - 12 - j; g.set(x, y, 'j'); g.set(x + 1, y, 'h'); }
+    g.rect(hx + 2, hy - 20, 3, 3, awake ? 'u' : 'h'); g.set(hx + 2, hy - 20, awake ? 'v' : 'i'); g.set(hx + 4, hy - 18, awake ? 't' : 'g'); g.rect(hx + 3, hy - 21, 1, 1, awake ? 'u' : 'h');
+    ln(hx + 5, hy - 10, hx + 9, hy - 17, 'h'); g.set(hx + 9, hy - 18, 'g');
     for (let y = hy - 1; y <= hy + 8; y++) { const w = y < hy + 5 ? 8 : 8 - (y - hy - 4); g.rect(hx - 10, y, w, 1, y === hy - 1 ? 'x' : 'U'); }   // Gesicht vorn
     g.set(hx - 9, hy + 2, awake ? 'W' : 'u'); g.set(hx - 8, hy + 2, awake ? 'W' : 'u'); g.set(hx - 7, hy + 2, awake ? 'V' : 'u');   // ein Auge
-    arm(-st, 0);                                                                                                            // vorderer Arm pendelt gegen das vordere Bein
+    arm(armSw(0), 0);                                                                                                            // vorderer Arm pendelt gegen das vordere Bein
     return g.rows();
   }
+  /* v158: Düsenflamme mit rundem, breitem Ende (statt spitz): heller Kern, orange Hülle */
+  const jetFlame = (g, x, y, w, len) => { for (let i = 0; i < len; i++) { const f = i / len, ww = w * (f < .7 ? 1 - .25 * f : (1 - .25 * .7) * Math.sqrt(Math.max(0, 1 - ((f - .7) / .3) ** 2))), x0 = x + (w - ww) / 2;
+      if (ww < .8) continue; R(g, Math.round(x0), y + i, Math.max(1, Math.round(ww)), 1, f > .8 ? '#ff7a2c' : '#ff9a3c');
+      const cw = ww * (f < .5 ? .6 : .35); if (cw >= 1) R(g, Math.round(x + (w - cw) / 2), y + i, Math.round(cw), 1, f < .25 ? '#fff3c0' : '#ffd56a'); } };
+  const MSTAUB = {};
   const MSIDE = {}, mechaSidePose = (p, paint) => { const k = [p.step, paint].join(','); return MSIDE[k] || (MSIDE[k] = ART.buildSprite(mechaSideBig(p), ART.paintPal(paint))); };
   const MECHA_F = [0, 1, 2, 3, 4, 5, 6].map(k => S(mechaFront(k)));
-  const MECHA_FP = {}, mechaFrontPose = (p, paint) => { const k = [p.bob, p.head, p.swing, p.raise, p.rL, p.rR, p.wv, p.awake, p.blade, paint].join(','); return MECHA_FP[k] || (MECHA_FP[k] = ART.buildSprite(mechaFront(6, p), ART.paintPal(paint))); };   /* gecacht je Pose und Lackierung */
+  const MECHA_FP = {}, mechaFrontPose = (p, paint) => { const k = [p.bob, p.head, p.swing, p.raise, p.rL, p.rR, p.wv, p.awake, p.blade, p.core, p.schub, paint].join(','); return MECHA_FP[k] || (MECHA_FP[k] = ART.buildSprite(mechaFront(6, p), ART.paintPal(paint))); };   /* gecacht je Pose und Lackierung */
   const MECHA = [0, 1, 2, 3, 4, 5, 6].map(k => S(mechaGrid(k)));
   /* Bauteil, das als Nächstes angebaut wird: Unterschied zwischen Bauabschnitt k und k + 1, auf das Teil zugeschnitten (hängt am Portalkran) */
   const MNEXT = [0, 1, 2, 3, 4, 5].map(k => { const A = mechaFront(k), B = mechaFront(k + 1),   /* aus der Vorderansicht, die man im Kraftwerk sieht */ D = B.map((r, y) => [...r].map((c, x) => c !== '.' && c !== A[y][x] ? c : '.'));
@@ -927,16 +967,17 @@ const INNER = (() => {
     return { stack, w };
   }
   function drawPorter(g, w, vi, time) { ART.OCC.on = true; try { drawPorter0(g, w, vi, time); } finally { ART.OCC.on = false; } }
+  const PTAK = {};   /* v151: Takt je Träger fest merken – w wird jedes Bild neu erzeugt, sonst ratterte die Figur */
   function drawPorter0(g, w, vi, time) {
-    const W = WORKERS.set('big', vi); let s;
-    if (w.pose === 'walk') s = W.walk[Math.floor(w.dist / 16 * 8) % 8];
-    else if (w.pose === 'carry') s = W.carry[Math.floor(w.dist / 16 * 8) % 8];
+    const W = WORKERS.set('big', vi); let s; const tk = PTAK[vi] || (PTAK[vi] = WORKERS.tak({}));
+    if (w.pose === 'walk') s = W.walk[Math.floor(w.dist / 16 * W.walk.length) % W.walk.length];
+    else if (w.pose === 'carry') s = W.carry[Math.floor(w.dist / 16 * W.carry.length) % W.carry.length];
     else if (w.pose === 'reach') s = W.reach[0];
-    else if (w.pose === 'work') s = W.work[Math.floor(time * 1.6 + vi) % 4];
-    else if (w.pose === 'phone') s = W.phone[Math.floor(time * .8 + vi) % 2];
-    else if (w.pose === 'coffee') s = W.coffee[(time * .4 + vi * .3) % 1 < .25 ? 1 : 0];
+    else if (w.pose === 'work') s = W.work[Math.floor(time * 1.6 * tk.sp + tk.ph) % 4];   /* v150: eigener Takt */
+    else if (w.pose === 'phone') s = W.phone[Math.floor(time * (W.px ? 4 : .8) * tk.sp + tk.ph) % W.phone.length];
+    else if (w.pose === 'coffee') s = W.coffee[(time * .4 * tk.sp + tk.ph) % 1 < .25 ? 1 : 0];
     else if (w.pose === 'stretch' || w.pose === 'wave') s = W[w.pose][Math.floor(time * 2.2 + vi) % 2];
-    else s = W.idle[Math.floor(time * .7 + vi) % 2];
+    else s = W.idle[Math.floor(time * (W.px ? 7 : .7) * tk.sp + tk.ph * 5) % W.idle.length];
     LATE.push(() => WORKERS.put(g, s, Math.round(w.x), BASE + 13, w.dir < 0));   // erst nach allen Maschinen zeichnen
   }
   const LATE = [];
@@ -1189,7 +1230,7 @@ const INNER = (() => {
     const k = ART.wetK(skyAt(t), cl, wx.storm), n = k.night, RM = ROOMS[room], wall = WALLS[room];
     for (const hk in HIT) if (hk.startsWith('g_')) delete HIT[hk];   /* Gimmick-Flächen gelten nur im aktuellen Raum */
     for (const key in HIT) delete HIT[key];
-    backdrop(sc, k, FLOOR, time, t); ART.wetterHimmel(sc, k, wx, FLOOR, time, .45); ART.regen(sc, wx, time, dt, n, FLOOR);   /* liegt hinter der Wand, ist also nur in den Fensteröffnungen zu sehen; Donner gedämpft */
+    backdrop(sc, k, FLOOR, time, t); ART.wetterHimmel(sc, k, wx, FLOOR, time, .45); ART.nebelHimmel(sc, k, wx, FLOOR); ART.regen(sc, wx, time, dt, n, FLOOR);   /* liegt hinter der Wand, ist also nur in den Fensteröffnungen zu sehen; Donner gedämpft */
     lc.clearRect(0, 0, W, H); const L = [], UP = [];
     lc.drawImage(wall.s.c, -1, -1);
     lc.drawImage(ART.cachedLayer('floor_' + RM.floor, H, ART.kq(k.tree, k.night), g => floor(g, k, RM.floor)), 0, 0);   /* Hallenboden aus dem Zwischenbild */
@@ -1265,6 +1306,7 @@ const INNER = (() => {
         const spr = (b.ok ? BADGE_S : BADGE_SG)[b.id]; if (b.ok && b.a < 1 && BADGE_SG[b.id]) { blit(lc, BADGE_SG[b.id], cx, bt); lc.globalAlpha = b.a * b.a; } if (spr) blit(lc, spr, cx, bt); lc.globalAlpha = 1;
       });
       [[to.x - 1, 1], [to.x + to.s.w, -1]].forEach(([sx, dir]) => { const o = blit(lc, SPOT, sx, FLOOR + 20, null, dir < 0); if (st.built) { UP.push({ x: o.x + (dir > 0 ? 3 : 1), y: o.y + 1, len: 92, w: 2, dir }); L.push({ x: o.x + (dir > 0 ? 4 : 0), y: o.y + 1, w: 1, h: 2, c: '#fff3c0', fire: true }); } });
+      if (st.built && typeof WERKMEISTER !== 'undefined') { const o = WERKMEISTER.draw(lc, 114, FLOOR + 5, time); HIT.meister = { x: o.x, y: o.y, w: o.w, h: o.h, meister: 1 }; } else delete HIT.meister;   /* v145: Werkmeister hinten an der Wand vor dem Fenster, neben dem Auftragsbrett; Paravent und Schreibtisch stehen davor */
       const dk = DESK_O = blit(lc, DESK, 150, BASE - 6); { const q = gimT('chair', time, 1.4), cw = CHAIR.c.width, chh = CHAIR.c.height, x0 = 182 - Math.floor(CHAIR.w / 2) - 1, y0 = BASE + 3 - CHAIR.h - 1;   /* Bürostuhl dreht sich einmal: 8 Ansichten */
         const VIEWS8 = [[CHAIR, false], [CHAIR_V.f34, false], [CHAIR_V.s, false], [CHAIR_V.b34, false], [CHAIR_V.b, false], [CHAIR_V.b34, true], [CHAIR_V.s, true], [CHAIR_V.f34, true]], vw = q === null ? VIEWS8[0] : VIEWS8[Math.floor(q * 8) % 8];
         blit(lc, vw[0], 182, BASE + 3, null, vw[1]); HIT.g_chair = { x: x0, y: y0, w: cw, h: chh, gim: 'chair' }; } blit(lc, COFFEE, dk.x + 58, dk.y + 14); drawLounge(lc, n, L, st.built, time);
@@ -1290,13 +1332,13 @@ const INNER = (() => {
           if (T < .45) { const yy = pg.y + 4 + Math.round((fy - 12 - pg.y - 4) * (T / .45) * (T / .45)); R(lc, hx - 3, yy, 6, 3, HC); R(lc, hx - 1, yy + 3, 2, 8, SC); }   /* fällt in der Form, in der er an der Wand hing */
           else if (T < 4.9) { R(lc, hx - 3, fy - 5, 3, 6, HC); R(lc, hx, fy - 3, 8, 2, SC); }   /* liegt um 90° gedreht, bis er aufgehoben wird */
           SFX.edge('pegLand', T > .45, 'clank', { pan: SFX.panX(hx), vol: .6 });
-          const Wb = WORKERS.set('big', 5), fy2 = FLOOR + 7, wx = T < 2.2 ? null : T < 4.4 ? Math.round(-14 + (hx + 2 + 14) * Math.min(1, (T - 2.2) / 2)) : hx + 2;   /* läuft hin, hebt auf, hält, hängt ein */
-          if (wx !== null) { const walking = T < 4.4, holding = T >= 4.9 && T < 5.4, toWall = T >= 5.4, fr = walking ? Wb.walk[Math.floor(T * 8) % Wb.walk.length] : holding ? Wb.carry[0] : Wb.idle[0];
-            if (toWall) blit(lc, WORKERS.frontB(5, true)[T < 5.75 ? 4 : 1], wx, fy2); else blit(lc, fr, wx, fy2, null, false);   /* dreht sich zur Wand (Rückenansicht) und hängt den Hammer ein */
-            if (holding) { R(lc, wx + 1, fy2 - 19, 6, 3, '#6b6672'); R(lc, wx + 3, fy2 - 16, 2, 5, '#7f5236'); } }   /* Hammer in den Händen vor der Brust */
+          const Wb = WORKERS.set('big', 5), fy2 = FLOOR + 7, wx = T < 2.2 ? null : T < 4.4 ? Math.round(-14 + (hx - 2 + 14) * Math.min(1, (T - 2.2) / 2)) : hx - 2;   /* v151: bleibt etwas vor dem Hammer stehen */   /* läuft hin, hebt auf, hält, hängt ein */
+          if (wx !== null) { const walking = T < 4.4, holding = T >= 4.9 && T < 5.4, toWall = T >= 5.4, fr = walking ? Wb.walk[Math.floor(T * 8) % Wb.walk.length] : holding ? Wb.halten[0] : Wb.idle[0];   /* v150: hält den Hammer, keine Kiste */
+            if (toWall) blit(lc, WORKERS.frontB(5, true)[T < 5.75 ? 6 : 1], wx, fy2); else blit(lc, fr, wx, fy2, null, false);   /* dreht sich zur Wand (Rückenansicht) und hängt den Hammer ein */
+            }   /* Hammer in den Händen vor der Brust */
           SFX.edge('pegHang', T > 5.9, 'clink', { pan: SFX.panX(hx), vol: .6 });
         }
-        if (q !== null && T > 5.9) { const Wb = WORKERS.set('big', 5), hx = pg.x + 4, ox2 = Math.round(hx + 2 - Math.max(0, T - 6.2) / 2.8 * (hx + 30)); if (T < 6.2) blit(lc, WORKERS.frontB(5, true)[1], hx + 2, FLOOR + 7); else blit(lc, Wb.walk[Math.floor(T * 8) % Wb.walk.length], ox2, FLOOR + 7, null, true); }   /* bleibt sichtbar: erst noch zur Wand gewandt, dann dreht er sich um und geht */   /* Arbeiter geht wieder */ } blit(lc, EXT, 90, FLOOR - 14); blit(lc, POSTER, 246, FLOOR - 30); clockAt(lc, 111, 108, 'B', time);
+        if (q !== null && T > 5.9) { const Wb = WORKERS.set('big', 5), hx = pg.x + 4, ox2 = Math.round(hx - 2 - Math.max(0, T - 6.2) / 2.8 * (hx + 30)); if (T < 6.2) blit(lc, WORKERS.frontB(5, true)[1], hx - 2, FLOOR + 7); else blit(lc, Wb.walk[Math.floor(T * 8) % Wb.walk.length], ox2, FLOOR + 7, null, true); }   /* bleibt sichtbar: erst noch zur Wand gewandt, dann dreht er sich um und geht */   /* Arbeiter geht wieder */ } blit(lc, EXT, 90, FLOOR - 14); blit(lc, POSTER, 246, FLOOR - 30); clockAt(lc, 111, 108, 'B', time);
       const p = ss('abkant'), run = p.state === 'running', pl = lv('abkant');
       // Brückenkran: Laufbahn oben, gelbe Laufkatze mit Unterflasche; hebt die Bleche einzeln vom Stapel auf die Auflage
       blit(lc, RUNWAY, 192, 24);
@@ -1500,7 +1542,7 @@ const INNER = (() => {
       const GXc = 84, MXc = 304, Tg = clock('gewinde', gw.state === 'running'), tcM = gw.state === 'running' ? tapCycle(Tg) : { d: 0, dir: 0 }; if (gw.state === 'running') { SFX.hum('drill', tcM.dir ? .55 : 0, SFX.panX(GXc)); SFX.edge('tap_rev', tcM.dir === -1, 'tapRev', { pan: SFX.panX(GXc), vol: .8 }); SFX.edge('tap_bin', tcM.swap !== undefined && tcM.swap > .9, 'binDrop', { pan: SFX.panX(GXc), vol: .8 });   /* Gewindebohrer läuft zurück; fertiges Teil fällt zu den anderen in die Kiste */   /* Gewindeschneiden hörbar, Klick am Ende, Teil fällt in die Kiste */ SFX.edge('tap_rev', tcM.dir === -1, 'servo', { pan: SFX.panX(GXc), vol: .5 }); }   /* Gewindebohrer dreht hinein und heraus */
       if (st.built && gw.state !== 'broken') {   // Bediener steht hinter der Werkbank, hebt das fertige Teil heraus und legt es in die Kiste
         const Wk = WORKERS.set('big', 1), Sk = Wk.S, reach = tcM.swap !== undefined && tcM.swap < .7;
-        ART.OCC.on = true; blit(lc, reach ? Wk.reach[0] : Wk.idle[Math.floor(time * .7) % 2], GXc + 38, BASE - 12 + Math.round(Sk.h - Sk.hipY - Sk.thigh - Sk.shin), null, true); ART.OCC.on = false; }   // schaut immer zur Maschine (nach links)
+        ART.OCC.on = true; blit(lc, reach ? Wk.reach[0] : Wk.idle[Math.floor(time * (Wk.px ? 7 : .7)) % Wk.idle.length], GXc + 38, BASE - 12 + Math.round(Sk.h - Sk.hipY - Sk.thigh - Sk.shin), null, true); ART.OCC.on = false; }   // schaut immer zur Maschine (nach links)
       const go = blit(lc, gw.state === 'broken' ? TAP.broken : TAP.ok, GXc, BASE); put('gewinde', go);
       if (gl >= 2) { for (let i = 0; i < 16; i++) R(lc, go.x + 2 - i, go.y + 25 + Math.round(i * 1.4), 2, 1, i % 3 ? '#8f8a92' : '#4a4652'); const t2 = blit(lc, TAP2B, go.x + 17, go.y + 30);   // Rutsche in die Kiste   // zweiter Kopf am Ausleger der Säule, eigener Schraubstock auf der Werkbank
         const c2 = gw.state === 'running' ? tapCycle(Tg, 2.3) : { d: 0, dir: 0 }; SFX.edge('tap2_go', c2.dir === 1, 'tapRun', { pan: SFX.panX(t2.x), vol: .7 }); SFX.edge('tap2_rev', c2.dir === -1, 'tapRev', { pan: SFX.panX(t2.x), vol: .6 });   /* zweiter Kopf: kurze eigene Geräusche statt Dauersurren */
@@ -1577,8 +1619,9 @@ const INNER = (() => {
         for (const wx of [cx - 6, cx + 5]) { R(lc, wx - 2, cb - 5, 5, 5, '#24182a'); R(lc, wx - 1, cb - 4, 3, 3, '#4a4652'); R(lc, wx, cb - 3, 1, 1, '#d8d2cc'); }
         if (A.assy === 'cart') drawAssy(lc, cx, cb - 9, 3, 0);
         const Wk = WORKERS.set('big', 3), Sk = Wk.S, wx = cx + 17, dist = Math.abs(A.cartX - AS.FIX) * 1.6;
-        const fr = A.walk ? Wk.walk[Math.floor(dist / 18 * 8) % 8] : Wk.work[Math.floor(time * 1.2) % 4];
-        blit(lc, fr, wx, BASE + 13 + Math.round(Sk.h - Sk.hipY - Sk.thigh - Sk.shin), null, A.walk ? A.dir < 0 : true);
+        const pa = A.dir < 0 ? (Wk.push || Wk.walk) : (Wk.pull || Wk.push || Wk.walk);   /* v151: eigene Zieh-Bilder (rückwärts abgespielt) */   /* v151: Arme vorn am Griff – schiebt nach links, zieht rückwärts nach rechts */
+        const k = Math.floor(dist / 18 * pa.length) % pa.length, fr = A.walk ? pa[A.dir < 0 ? k : pa.length - 1 - k] : Wk.work[Math.floor(time * 1.2) % 4];
+        blit(lc, fr, wx, BASE + 13 + Math.round(Sk.h - Sk.hipY - Sk.thigh - Sk.shin), null, true);   /* schaut immer zum Wagen */
       }
       if (ml >= 3) { blit(lc, TOWERL, mo.x + 2, mo.y + 10); L.push({ x: mo.x + 1, y: mo.y + 4, w: 1, h: 1, c: mrun ? '#9cff7a' : '#ffd56a', fire: true });
  }
@@ -1622,7 +1665,8 @@ const INNER = (() => {
       const flyQ = intro !== undefined ? (intro >= 10.5 ? Math.min(1, (intro - 10.5) / 3.5) : null) : PU !== null && PU < 49.5 ? 1 : null;   /* fliegt nur bei der Inbetriebnahme hinaus */
       const qxW = (a, b, d) => a + (b - a) * Math.min(1, Math.floor(d / .3) / 20), wk = PU === null ? null : PU >= 144 ? { x: qxW(MX, 440, PU - 144), dir: 1, d: PU - 144 } : PU >= 49.5 && PU < 55.5 ? { x: qxW(440, MX, PU - 49.5), dir: -1, d: PU - 49.5 } : null;   /* gleiche Werte wie wkE oben */   /* zur Wache: stapft seitlich durchs offene Tor hinaus und wieder herein */
       const away = flyQ !== null && flyQ >= 1, fly = flyQ === null ? null : { back: 0, lift: Math.max(1, Math.pow(flyQ, 1.7) * 150) };   /* zündet sofort die Düsen und steigt hinter dem Tor auf */   /* ein echter Schritt zurück (Fuß kurz anheben, versetzt absetzen), dann senkrecht hoch */   /* erst ein Schritt zurück in die Bucht, dann senkrecht hoch: verschwindet hinter der Oberkante des Tors */
-      if (wk) { const st4 = Math.floor(wk.d / .3) % 8; SFX.edge('pStepA', st4 === 0, 'mstep', { pan: SFX.panX(wk.x), vol: .5 }); SFX.edge('pStepB', st4 === 4, 'mstep', { pan: SFX.panX(wk.x), vol: .5 }); }
+      if (wk) { const st4 = Math.floor(wk.d / .3) % 8; SFX.edge('pStepA', st4 === 0, 'mstep', { pan: SFX.panX(wk.x), vol: .5 }); SFX.edge('pStepB', st4 === 4, 'mstep', { pan: SFX.panX(wk.x), vol: .5 });
+        const k4 = st4 % 4 === 0 ? st4 : -1; if (k4 >= 0 && MSTAUB.k !== k4 + ':' + Math.floor(wk.d / 2.4)) { MSTAUB.k = k4 + ':' + Math.floor(wk.d / 2.4); const fx = wk.x + wk.dir * 12; ART.staub(fx - 11, MB - 1, -1); ART.staub(fx + 11, MB - 1, 1); } }   /* v158: Staub beim Auftreten */
       if (PU !== null) SFX.edge('pArrive', PU >= 55.5 && PU < 57, 'mstep', { pan: SFX.panX(MX), vol: .5 });   /* letzter Schritt beim Ankommen, bevor er sich umdreht */
       if (intro !== undefined) SFX.edge('in_out', intro > 10.5, 'mjet');   /* Schritt zurück, dann Düsen */
       if (fly && !away) SFX.hum('jet', .3, SFX.panX(MX));
@@ -1632,13 +1676,15 @@ const INNER = (() => {
       if (alive && A && intro === undefined) { const u = A.t, K = 'ma' + A.id;   /* Aktion nach dem Antippen (3,2 s) */
         if (A.k === 'faust') { const up = Math.floor(u * 2.5) % 2 === 1; pose.raise = up ? 2 : 0; pose.swing = 0; SFX.edge(K + 'a', up, 'mservo', { vol: .8 }); SFX.edge(K + 'b', !up && u > .3, 'clank', { vol: .6 }); }
         else if (A.k === 'winken') { pose.rR = 3; pose.wv = Math.round(Math.sin(u * 9) * 2); pose.head = 1; SFX.edge(K + 'a', u > .05, 'mservo'); SFX.edge(K + 'b', u > .5, 'mbeep'); SFX.edge(K + 'c', u > .7, 'mbeep'); }
-        else if (A.k === 'abheben') { lift = Math.round(Math.sin(Math.min(1, u / 3) * Math.PI) * 12); pose.raise = 1; SFX.edge(K + 'a', u > .02, 'mjet'); if (u < 2.9) SFX.hum('jet', .35, SFX.panX(MX)); SFX.edge(K + 'b', u > 3, 'mthud'); }
+        else if (A.k === 'abheben') { lift = Math.round(Math.sin(Math.min(1, u / 3) * Math.PI) * 12); pose.raise = 0; pose.swing = 0; pose.schub = u < 3 ? 1 : 0; SFX.edge(K + 'a', u > .02, 'mjet'); if (u < 2.9) SFX.hum('jet', .35, SFX.panX(MX)); SFX.edge(K + 'b', u > 3, 'mthud'); }
         else if (A.k === 'licht') { show = Math.floor(u * 6); pose.head = [0, -1, 0, 1][show % 4]; SFX.once(K + 'c' + show, 'mlaser', { vol: .8 });   /* Laseraugen */ }
         else if (A.k === 'klinge') { pose.blade = u < .3 ? 0 : u < 1 ? Math.round(ease((u - .3) / .7) * 4) / 4 : u < 2.4 ? 1 : u < 3 ? Math.round((1 - ease((u - 2.4) / .6)) * 4) / 4 : 0; pose.swing = 0; if (u > 1.1 && u < 2.3) pose.wv = Math.round(Math.sin((u - 1.1) * 4.5));   /* nur noch leichtes Schwenken der Klinge */ SFX.edge(K + 'a', u > .05, 'mservo'); SFX.edge(K + 'b', u > .45, 'blade'); SFX.edge(K + 'c', u > 1.15, 'whoosh', { vol: .7 }); SFX.edge(K + 'd', u > 2.45, 'mservo'); }   /* Hand fährt ein, Klinge fährt aus, Schwung, wieder ein */
         else if (A.k === 'dampf') { pose.head = Math.sin(u * 4) > 0 ? -1 : 1; SFX.edge(K + 'a', u > .02, 'hiss'); SFX.edge(K + 'b', u > 1.6, 'hiss'); }
       }
-      if (fly && pose) { lift = Math.round(fly.lift); if (fly.back >= 1) { pose.raise = 1; pose.swing = 0; } }
+      if (fly && pose) { lift = Math.round(fly.lift); if (fly.back >= 1) { pose.raise = 1; pose.swing = 0; } if (fly.lift > 0) pose.schub = 1; }
       if (alive && !away) SFX.hum('reactor', .18, SFX.panX(MX));
+      if (pose && alive) pose.core = Math.min(2, Math.floor((Math.sin(time * 1.7) + 1) * 1.5));   /* v158: Kern pulsiert */
+      if (pose && !away) ART.mechaKlang('kraftwerk', pose, MX, alive && !fly && !wk ? sd => [MX + sd * 37, MB - lift - 45 + (pose.bob || 0)] : null);   /* v155: Arme zischen, v158: mit Dampfstoß aus dem Ellenbogen */
       const MS = pose ? mechaFrontPose(pose, paint) : MECHA_F[stg];
       let mo = null; delete HIT.mecha;
       if (away) { /* draußen auf Wache: Hangar leer */ }
@@ -1647,7 +1693,8 @@ const INNER = (() => {
         lc.save(); lc.beginPath(); lc.rect(262, Math.max(40, gEdge + 2), 122, H); lc.clip();   /* alles über dem aufgerollten Tor bleibt unsichtbar */
         lc.imageSmoothingEnabled = false; lc.drawImage(MS.c, x, y, w, h);
         if (fly.lift > 0) SFX.hum('jet', .4, SFX.panX(MX));   /* Düsen bis zum Schluss hörbar */
-        if (fly.lift > 0) for (const bx of [27, 53]) { const fx2 = Math.round(x + bx * sc2) - 1, fy2 = y + h - 2, fl = 15 + Math.floor(Math.random() * 7), top = Math.max(40, gEdge + 2); ART.flame(lc, fx2 + 1, fy2, 13, fl);   /* Stiefel liegen im Bild bei 23–43 und 49–69: Flamme 13 breit genau darunter (v132) */
+        if (fly.lift > 0) for (const bx of [12, 80]) { const fx2 = Math.round(x + (bx - 6) * sc2), fy2 = Math.round(y + 80 * sc2), fl = 10 + Math.floor(Math.random() * 6); jetFlame(lc, fx2, fy2, Math.round(11 * sc2), fl); }   /* v158: Handdüsen */
+        if (fly.lift > 0) for (const bx of [27, 53]) { const fx2 = Math.round(x + bx * sc2) - 1, fy2 = y + h - 2, fl = 15 + Math.floor(Math.random() * 7), top = Math.max(40, gEdge + 2); jetFlame(lc, fx2 + 1, fy2, 13, Math.round(fl * .85));   /* Stiefel liegen im Bild bei 23–43 und 49–69: Flamme 13 breit genau darunter (v132) */
           const ly = Math.max(fy2, top), lh = Math.min(fy2 + Math.round(fl * .6), H) - ly; if (lh > 0) L.push({ x: fx2 + 3, y: ly, w: 9, h: lh, c: '#ff9a3c', fire: true, soft: true });   /* Schein nur dort, wo die Flamme unter dem aufgerollten Tor zu sehen ist (v131: leuchtete vorher vor dem Tor) */
           if (Math.random() < .5 && fy2 + fl > top + 4) puff(fx2 + 7, fy2 + fl, 'smoke'); }   /* Rauch kommt aus den Flammen */
         lc.restore(); }
@@ -1656,11 +1703,14 @@ const INNER = (() => {
         for (const bx of [29, 54]) { const fx2 = Math.round(x + bx * fly.s), fy2 = y + h, fw = Math.max(2, Math.round(9 * fly.s)), fl = Math.max(2, Math.round((3 + Math.random() * 4) * fly.s)); R(lc, fx2, fy2, fw, fl, '#ff7a2c'); R(lc, fx2 + 1, fy2, Math.max(1, fw - 2), Math.max(1, fl - 1), '#ffd56a'); L.push({ x: fx2, y: fy2, w: fw, h: fl, c: '#ff9a3c', fire: true, a: fly.a }); }
         lc.restore(); }
       else { mo = blit(lc, MS, MX, MB - lift); HIT.mecha = { x: mo.x, y: mo.y, w: MS.w, h: MS.h, mecha: 1 }; }
-      if (mo && (lift > 0 || (A && A.k === 'abheben' && A.t < 3))) for (const fx2 of [mo.x + 1 + 25, mo.x + 1 + 51]) { const fy2 = mo.y + 1 + 98, fl = 15 + Math.floor(Math.random() * 7); R(lc, fx2 - 1, fy2, 15, 1, '#3e2731'); ART.flame(lc, fx2, fy2 + 1, 13, fl); L.push({ x: fx2 + 2, y: fy2 + 1, w: 9, h: Math.round(fl * .6), c: '#ff9a3c', fire: true, soft: true });   /* mittig unter den Stiefeln (v132) */ if (Math.random() < .6) puff(fx2 + 7, MB - 2, 'smoke'); }   /* spitz auslaufende Düsenflammen unter beiden Stiefeln */
+      if (mo && pose && pose.schub) for (const hx3 of [11, 79]) { const fx2 = mo.x + 1 + hx3 - 5, fy2 = mo.y + 1 + 79 + (pose.bob || 0), fl = 10 + Math.floor(Math.random() * 5); jetFlame(lc, fx2, fy2, 11, fl); L.push({ x: fx2 + 2, y: fy2, w: 7, h: Math.round(fl * .6), c: '#ff9a3c', fire: true, soft: true }); if (Math.random() < .3) puff(fx2 + 5, fy2 + fl, 'smoke'); }   /* v158: Schubdüsen in den Handflächen */
+      if (mo && (lift > 0 || (A && A.k === 'abheben' && A.t < 3))) for (const fx2 of [mo.x + 1 + 25, mo.x + 1 + 51]) { const fy2 = mo.y + 1 + 98, fl = 15 + Math.floor(Math.random() * 7); R(lc, fx2 - 1, fy2, 15, 1, '#3e2731'); jetFlame(lc, fx2, fy2 + 1, 13, Math.round(fl * .85)); L.push({ x: fx2 + 2, y: fy2 + 1, w: 9, h: Math.round(fl * .6), c: '#ff9a3c', fire: true, soft: true });   /* mittig unter den Stiefeln (v132) */ if (Math.random() < .6) puff(fx2 + 7, MB - 2, 'smoke'); }   /* spitz auslaufende Düsenflammen unter beiden Stiefeln */
       if (show !== null && mo) { const SC = ['#ff5a4a', '#ffd56a', '#9cff7a', '#7fd4ff', '#d07aff', '#ffffff'], c = SC[show % SC.length], hx2 = mo.x + 1 + 45 + pose.head, ey = mo.y + 1 + 28 + pose.bob, cy2 = mo.y + 1 + 46 + pose.bob;   /* Lichtshow: Augen und Kern wechseln die Farbe, Strahlen fegen durch die Halle */
         for (const ex of [hx2 - 4, hx2 + 3]) { R(lc, ex, ey, 2, 1, c); L.push({ x: ex, y: ey, w: 2, h: 1, c, fire: true }); }
-        R(lc, mo.x + 44, cy2 - 1, 3, 3, c); L.push({ x: mo.x + 43, y: cy2 - 2, w: 5, h: 5, c, fire: true });
-        lc.globalAlpha = .28; for (const [ex, d] of [[hx2 - 4, -1], [hx2 + 4, 1]]) { const tx2 = MX + d * (30 + Math.sin(A.t * 5) * 70); seg(lc, ex, ey, Math.round(tx2), BASE + 10, c, 1); seg(lc, ex, ey + 1, Math.round(tx2) + d * 2, BASE + 10, c, 1); } lc.globalAlpha = 1; }
+        for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (x * x + y * y <= 10) R(lc, mo.x + 1 + 45 + x, cy2 + y, 1, 1, c); L.push({ x: mo.x + 42, y: cy2 - 3, w: 7, h: 7, c, fire: true });   /* v158: ganzer Kern in der Showfarbe */
+        for (const [ex, d] of [[hx2 - 3, -1], [hx2 + 4, 1]]) { const tx2 = Math.round(MX + d * (34 + Math.sin(A.t * 5) * 60)), ty2 = BASE + 6;   /* v158: Strahl aus dem Auge mit hellem Kern, Lichtfleck am Boden */
+          lc.globalAlpha = .22; seg(lc, ex, ey + .5, tx2, ty2, c, 3); lc.globalAlpha = .7; seg(lc, ex, ey + .5, tx2, ty2, c, 1); lc.globalAlpha = .9; seg(lc, ex, ey + .5, ex + (tx2 - ex) * .08, ey + (ty2 - ey) * .08, '#ffffff', 1);
+          lc.globalAlpha = .5; R(lc, tx2 - 4, ty2 - 1, 9, 2, c); lc.globalAlpha = .9; R(lc, tx2 - 2, ty2 - 1, 5, 1, '#ffffff'); lc.globalAlpha = 1; L.push({ x: tx2 - 6, y: ty2 - 3, w: 13, h: 5, c, fire: true, soft: true }); } }
       if (mo && A && A.k === 'dampf' && A.t < 3) { if (Math.random() < .45) puff(mo.x + 40 + Math.random() * 12, mo.y + 12 + Math.random() * 4, 'smoke'); if (Math.random() < .6) puff(mo.x + (Math.random() < .5 ? 8 : 72) + Math.random() * 10, mo.y + 54 + Math.random() * 12, 'smoke'); }   /* Dampf aus Kopf und Armen */
       if (intro !== undefined && stg >= 6 && mo) {   /* Energiekern lädt auf, dann gehen die Augen an */
         const q = Math.max(0, Math.min(1, (intro - 2.8) / 2.2)); if (q > 0 && intro < 5) { L.push({ x: mo.x + 40, y: mo.y + 42, w: 10, h: 10, c: '#ffd56a', fire: true, a: q }); if (Math.random() < q * .5) puff(mo.x + 45 + (Math.random() - .5) * 20, mo.y + 46, 'spark'); }
@@ -1709,6 +1759,7 @@ const INNER = (() => {
     RM.slots.forEach((x, i) => { const it = pl['0:' + i]; const b = BASE + 18; HIT['slot' + i] = { x: x - 12, y: b - 22, w: 24, h: 23, slot: i, lvl: 0, item: it };
       if (it && DSI[it]) FRONT.push(() => blit(lc, DSI[it], x, b)); else if (st.showSlots === 'boden' && (!st.only || st.only === room)) FREE.push({ x, b, w: 22 }); });
     LATE.forEach(f => f()); LATE.length = 0;
+    if (room !== 'pfoertner') delete HIT.meister;
     // Arbeiter: gehen in Ruhe zwischen Maschinen, Lager und Werkbank
     const nRun = Object.values(st.s || {}).filter(x => x.state === 'running').length;
     const nWork = !st.built ? 0 : room === 'pfoertner' ? Math.min(2, Math.max(1, nRun)) : 1;   // Träger und Wagenfahrer kommen dazu
@@ -1716,22 +1767,26 @@ const INNER = (() => {
     const FUN = ['phone', 'coffee', 'stretch', 'idle', 'wave'];   // Maschinen aus: die Leute machen Pause
     const spots = roomRun ? RM.walk : RM.walk.map((p, i) => ({ x: p.x, face: p.face, act: FUN[(i + Math.floor(time / 25)) % FUN.length] })).concat(room === 'blechwerkstatt' ? [{ x: 62, act: 'coffee', face: -1 }] : []);
     if (nWork) { const c = WORKERS.crew('in_' + room, nWork, spots, 'big', 10, 374, room === 'pfoertner' ? 99 : undefined); WORKERS.step(c, dt); WORKERS.draw(lc, c, BASE + 13, time); }
+    if (room === 'kraftwerk') { const sx = 229 - Math.floor(TABLET.w / 2) - 1 + 76;   /* v154: zwei Bodenstrahler vor der Mecha-Bucht (wie an der Ehrentafel im Pförtnerhaus) */
+      blit(lc, SPOT, sx, FLOOR + 47); blit(lc, SPOT, sx + 104, FLOOR + 47, null, true); }
     ART.OCC.on = true; FRONT.forEach(f => f()); ART.OCC.on = false;
     if (st.owned && st.owned.katze) { const cs = CATS[room] || (CATS[room] = {}), c = ART.catStep(cs, dt, time, 24, 360, 11, 1); ART.OCC.on = true; const o = blit(lc, c.fr, c.x, BASE + 22, null, c.flip); ART.OCC.on = false; HIT.fx_katze = { x: o.x, y: o.y, w: o.s.w, h: o.s.h, fixed: 'katze' };   // Katzenroboter streift durch die Halle
-      L.push({ x: o.x + (c.flip ? c.fr.w - 1 - c.fr.eye.x : c.fr.eye.x), y: o.y + c.fr.eye.y, w: 1, h: 1, c: '#7fe0ff', fire: true, a: .6 }); }
+      if (c.fr.eye) L.push({ x: o.x + (c.flip ? c.fr.w - 1 - c.fr.eye.x : c.fr.eye.x), y: o.y + c.fr.eye.y, w: 1, h: 1, c: '#7fe0ff', fire: true, a: .6 }); }
     if (room === 'kraftwerk' && st.intro !== undefined) { const u = st.intro, dk = u < 1 ? u * .7 : u < 5 ? .7 : u < 6.5 ? .7 * (1 - (u - 5) / 1.5) : 0; if (dk > 0) { lc.globalAlpha = dk; R(lc, 0, 0, W, H, '#05060f'); lc.globalAlpha = 1; } DIM = dk; } else DIM = 0;   /* Halle wird für den Start dunkel */
     tint(lc, W, H, k.tint);
     if (!st.built) { lc.globalCompositeOperation = 'source-atop'; lc.fillStyle = 'rgba(40,30,50,.35)'; lc.fillRect(0, 0, W, H); lc.globalCompositeOperation = 'source-over'; }
+    if (typeof LICHT !== 'undefined') LICHT.apply(lc, W, H, room, t);   /* v154: Licht aus pxl (licht.js) */
     sc.drawImage(layer, 0, 0);
     if (n > .3 && !lampsOn) { sc.globalAlpha = (n - .3) * .6; R(sc, 0, 0, W, H, '#0b1030'); sc.globalAlpha = 1; }
     stepParts(dt);
     const smc = rgb(mix(hx('#d6d6de'), k.bot, .35));
-    for (const p of parts) { const a = Math.max(0, p.life / p.max); sc.globalAlpha = p.kind === 'smoke' ? a * .5 : .95; R(sc, p.x, p.y, p.sz, p.sz, p.kind === 'smoke' ? smc : p.c); }
+    for (const p of parts) { const a = Math.max(0, p.life / p.max); sc.globalAlpha = p.kind === 'smoke' ? a * .5 : p.soft ? a * p.soft : .95; R(sc, p.x, p.y, p.sz, p.sz, p.kind === 'smoke' ? smc : p.c); }
     sc.globalAlpha = 1;
-    for (const u of UP) upCone(sc, u, n, time);
+    const NEU = typeof LICHT !== 'undefined' && LICHT.an();   /* v154: das neue Licht ersetzt Kegel, Lichtschein und Sonnenstreifen */
+    if (!NEU) { for (const u of UP) upCone(sc, u, n, time);
     for (const l of L) if (l.cone && n > .15) softCone(sc, l, n, time);
-    ART.glowPass(sc, L, l => Math.max(.35, n, DIM) * (l.a === undefined ? 1 : l.a)); ART.OCC.list.length = 0;
-    if (n < .4 && cl < .95) { sc.globalAlpha = .06 * (1 - n * 2) * (1 - cl);   /* bei bedecktem Himmel keine Sonnenstreifen */ for (const w of wall.wins) for (let i = 0; i < 50; i++) R(sc, w.x + 6 + i * .5, w.y + w.h + i, w.w - 8, 1, '#fff3c0'); sc.globalAlpha = 1; }
+    ART.glowPass(sc, L, l => Math.max(.35, n, DIM) * (l.a === undefined ? 1 : l.a)); } ART.OCC.list.length = 0;
+    if (!NEU && n < .4 && cl < .95) { sc.globalAlpha = .06 * (1 - n * 2) * (1 - cl);   /* bei bedecktem Himmel keine Sonnenstreifen */ for (const w of wall.wins) for (let i = 0; i < 50; i++) R(sc, w.x + 6 + i * .5, w.y + w.h + i, w.w - 8, 1, '#fff3c0'); sc.globalAlpha = 1; }
     ctx.drawImage(scene, 0, 0);
     if (st.showSlots) { OVER.dim(ctx, W, H); FREE.forEach((f, i) => f.wall ? OVER.frame(ctx, f.x, f.y, f.w, f.h, time, i) : OVER.spot(ctx, f.x, f.b, f.w, time, i)); }
     if (st.sel && HIT[st.sel]) { const h = HIT[st.sel], q = h.pad || 0; OVER.box(ctx, h.x - 2 - q, h.y - 2 - q, h.x + h.w + 1 + q, h.y + h.h + 1 + q, Math.sin(time * 5) > -.3 ? '#ffffff' : '#ffe08a'); }

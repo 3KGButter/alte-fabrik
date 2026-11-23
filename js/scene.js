@@ -254,16 +254,17 @@ const SCENE = (() => {
   // state: { b: {id: 'ruin'|'ok'|'locked'}, golem, running: {id: n}, truck: Anzahl Kisten, owned, placed, marks }
   /* Regen (v134): feste Tropfenbahnen, Ringe auf dem Wasser, Spritzer auf den Wegen */
   const RIP = [], CALM = ART.CALM;   /* Regen (v134): Ringe auf dem Wasser, Spritzer auf den Wegen. Tropfen und Himmel zeichnet art.js */
+  let GRD = null; const LMK = ART.mk(ART.W, ART.H), LMG = LMK.getContext('2d');   /* v154: Maske fürs Licht (alles außer Himmel) */
   function yard(ctx, st, t, time, dt) {
     const wx = st.wx || { rain: 0, storm: 0 }, rn = wx.rain, stm = wx.storm, cl = wx.cloud === undefined ? rn : wx.cloud, wet = cl > .75, gew = stm > .25;   /* cl: Wolkendecke (zieht vor dem Regen auf); wet: Himmel fast zu, alle gehen ins Trockene; gew: Gewitter */
     const k = ART.wetK(skyAt(t), cl, stm), n = k.night, work = n < .55, workC = work && !gew, lunch = t > .45 && t < .52 && n < .2 && !wet, nightW = n > .6;   /* Tagesablauf draußen: Schicht, Mittagspause, Nachtruhe */
     const bd = backdrop(sc, k, G + 2, time, t), sunPos = cl > .4 ? null : bd.sunPos, moonPos = cl > .4 ? null : bd.moonPos;   /* bei Regen kein Glitzern von Sonne und Mond auf dem Wasser */
     const flash = ART.wetterHimmel(sc, k, wx, G + 2, time);   /* Wolkendecke, Regenwolken, Blitz und Donner (gemeinsam mit den Hallenfenstern, art.js) */
-    sc.drawImage(ART.cachedLayer('ground', H, ART.kq(k.grass, k.bot, k.tree, k.water, k.shore, k.night, k.tint), g => ground(g, k, g2 => { const tk = k.tint.map(v => Math.round(v * 20)).join(','); if (PINE_T.k !== tk) { PINE_T.k = tk; const pg = PINE_T.c.getContext('2d'); pg.clearRect(0, 0, PINE_T.c.width, PINE_T.c.height); pg.drawImage(SPR.pineM.c, 0, 0); tint(pg, PINE_T.c.width, PINE_T.c.height, k.tint); } const pc = PINE_T.c; blit(g2, Object.assign({}, SPR.pineM, { c: pc }), 320, hillH[320] - 2); })), 0, 0);   // Tanne hinter Treppe und Geländer, tiefer gesetzt (kurzer Stamm)   /* Boden aus dem Zwischenbild */
+    sc.drawImage(GRD = ART.cachedLayer('ground', H, ART.kq(k.grass, k.bot, k.tree, k.water, k.shore, k.night, k.tint), g => ground(g, k, g2 => { const tk = k.tint.map(v => Math.round(v * 20)).join(','); if (PINE_T.k !== tk) { PINE_T.k = tk; const pg = PINE_T.c.getContext('2d'); pg.clearRect(0, 0, PINE_T.c.width, PINE_T.c.height); pg.drawImage(SPR.pineM.c, 0, 0); tint(pg, PINE_T.c.width, PINE_T.c.height, k.tint); } const pc = PINE_T.c; blit(g2, Object.assign({}, SPR.pineM, { c: pc }), 320, hillH[320] - 2); })), 0, 0);   // Tanne hinter Treppe und Geländer, tiefer gesetzt (kurzer Stamm)   /* Boden aus dem Zwischenbild */
     {   // Geräusche im Werkshof: Vögel am Tag, Grillen in der Nacht, leises Wasserplätschern
       const day = t > .22 && t < .8 && n < .3 && cl < .3; if (day && Math.random() < dt * .28) SFX.play('chirp', { pan: Math.random() * 1.4 - .7, vol: .8, gap: .5 });
       SFX.hum('water', .07); if (n > .5) SFX.hum('crickets', (n - .5) * .17 * (1 - rn)); }   /* Fluss leise; nachts ein sanft schwellender Grillenteppich (bei Regen still). Bei Regen zwitschert nichts */
-    for (const [i, tw] of [[0, .28], [1, .45], [2, .70]]) { const on = t > tw && t < tw + .004; SFX.edge('shift' + i, on, 'shift', { vol: .9 }); if (on && HIT.maschinenhalle && st.b.maschinenhalle === 'ok' && Math.random() < .6) puff(HIT.maschinenhalle.x + 8, HIT.maschinenhalle.y + 2, 'smoke'); }   /* Werkspfeife mit Dampfwolke: Schichtbeginn, Mittag, Feierabend */
+    for (const [i, tw] of [[0, .28], [1, .45], [2, .70]]) { const on = t > tw && t < tw + .004; SFX.edge('shift' + i, on, 'shift', { vol: .9 }); }   /* v156: keine Dampfwolke mehr über der Maschinenhalle (dort ist kein Kamin) */   /* Werkspfeife mit Dampfwolke: Schichtbeginn, Mittag, Feierabend */
     lc.clearRect(0, 0, W, H); const L = [], D = [], FREE = [], FOG = []; FRONTS.length = 0;   // D: Dinge im Hof, nach Tiefe (Unterkante) sortiert
     const add = (y, f) => D.push({ y, f });
     const watch = c => c.forEach((a, i) => { a.st = 'act'; a.act = (st.fw > 3 && (i + Math.floor(time * .8)) % 3 === 0) ? 'wave' : 'idle'; a.face = 226 - a.x >= 0 ? 1 : -1; a.t = Math.max(a.t, 4 + i); });   /* Feuerwerk: alle bleiben stehen, drehen sich zum Mecha, manche winken */
@@ -335,9 +336,9 @@ const SCENE = (() => {
       const FD = .55, hw = x => hillH[Math.max(0, Math.min(W - 1, Math.round(x)))] - 1;   /* Dauer eines Schrittbilds; Höhe des Wegs vor dem Kraftwerk */
       let beam = null, birdsOn = null;   /* Suchscheinwerfer-Ziel; Vögel auf dem Arm */
       const walkPose = (dist, dir) => { const f = Math.floor(dist / 2); pose.step = ((f % 8) + 8) % 8; pose.heavy = 1; side = dir || -1;   /* Schrittbild aus der zurückgelegten Strecke: der stehende Fuß bleibt fest am Boden */
-        if (pose.step % 4 === 0 && YM.lastStep !== f + ':' + dir) { YM.lastStep = f + ':' + dir; if (f > 0) { SFX.play('mstep', { pan: SFX.panX(mx || 340), vol: .8, gap: .2 }); for (let i = 0; i < 2; i++) puff((mx || 0) + (Math.random() - .5) * 10, (mb || 0) - 1, 'smoke'); } } };   /* schweres Auftreten: dumpfer Schritt, etwas Staub */
+        if (pose.step % 4 === 0 && YM.lastStep !== f + ':' + dir) { YM.lastStep = f + ':' + dir; if (f > 0) { SFX.play('mstep', { pan: SFX.panX(mx || 340), vol: .8, gap: .2 }); ART.staub((mx || 0) - 8, (mb || 0) - 1, -1); ART.staub((mx || 0) + 7, (mb || 0) - 1, 1); } } };   /* schweres Auftreten: dumpfer Schritt, etwas Staub */
       const walkSeg = (t, x0, x1, y) => { const n = Math.round(Math.abs(x1 - x0) / 2), f = Math.max(0, Math.min(n, Math.floor(t / FD))), dir = Math.sign(x1 - x0) || -1; mx = x0 + dir * 2 * f; mb = y === undefined ? hw(mx) : y; walkPose(f * 2, dir); return n * FD; };
-      let dep = null; const hop = (q, x0, b0, x1, b1, h) => { mx = lerp(x0, x1, ease(q)); mb = lerp(b0, b1, q) - Math.sin(q * Math.PI) * h; jet = true; dep = Math.max(b0, b1); };   /* fliegt in der Tiefe seines Ziels: hinter dem Prüflabor */
+      let dep = null, hopS = 0; const hop = (q, x0, b0, x1, b1, h) => { mx = lerp(x0, x1, ease(q)); mb = lerp(b0, b1, q) - Math.sin(q * Math.PI) * h; jet = true; dep = Math.max(b0, b1); hopS = Math.abs(x1 - x0) > 20 && q > .08 && q < .92 ? Math.sign(x1 - x0) : 0; };   /* v158: weiter Sprung = seitlicher Flug */   /* fliegt in der Tiefe seines Ziels: hinter dem Prüflabor */
       if (st.kat !== undefined) {   // Katapult-Kampf
         const u = st.kat, LX = 234, CX = 166, B = ART.RCY - 2;
         if (u < 4) { mx = GX; mb = GB; stand = true; }
@@ -402,7 +403,8 @@ const SCENE = (() => {
           if (A.k === 'abheben') { lift = Math.round(Math.sin(Math.min(1, t2 / 3) * Math.PI) * 8); jet = jet || t2 < 2.9; }
           else if (A.k === 'winken') pose.rR = 2 - up; else if (A.k === 'faust') { pose.rL = up * 2; pose.rR = (1 - up) * 2; } else pose.head = Math.sin(t2 * 4) > 0 ? -1 : 1;
           SFX.once('ya' + A.id, A.k === 'abheben' ? 'mjet' : A.k === 'dampf' ? 'msteam' : 'mservo', { pan: SFX.panX(mx), vol: .6 }); if (A.k === 'dampf' && Math.random() < .4) puff(mx + (Math.random() - .5) * 20, mb - 34, 'smoke'); }
-        const S2 = side && !jet ? SPR.mechaSideFrame({ step: pose.step }, M.paint) : SPR.mechaYardFrame(pose, M.paint), X0 = Math.round(mx), B0 = Math.round(mb) - lift, FL = side > 0;
+        if (!side) { if (!jet && pose.awake !== false) pose.core = Math.min(2, Math.floor((Math.sin(time * 1.7) + 1) * 1.5)); ART.mechaKlang('hof', pose, mx || 340, !jet && !lift ? sd => [Math.round(mx) + sd * 14, Math.round(mb) - 17 + (pose.bob || 0)] : null); }   /* v155: Arme zischen, v158: Kern pulsiert, Dampfstoß */
+        const flyS = jet && hopS && !lift; if (jet && !flyS) { pose.schub = 1; pose.rL = pose.rR = 0; } const S2 = flyS ? SPR.mechaSideFrame({ step: 'fly' }, M.paint) : side && !jet ? SPR.mechaSideFrame({ step: pose.step }, M.paint) : SPR.mechaYardFrame(pose, M.paint), X0 = Math.round(mx), B0 = Math.round(mb) - lift, FL = flyS ? hopS > 0 : side > 0;
         if (jet) SFX.hum('jet', .3, SFX.panX(mx)); SFX.hum('reactor', .08, SFX.panX(mx));
         { const want = rn > .35 && !jet && !lift && birdsOn === null && (time % 34) < 14;   /* Regen (v137): ab und zu fährt er einen kleinen Schirm aus dem Helm */
           YM.umb = Math.max(0, Math.min(1, (YM.umb || 0) + (want ? 1 : -1) * (dt || 0) / .6)); SFX.edge('ymUmb', want, 'mservo', { pan: SFX.panX(mx), vol: .35 }); }
@@ -414,7 +416,12 @@ const SCENE = (() => {
             R(lc, ux, uy - pl, 1, pl, '#9aa0aa');   /* Stange */
             if (q > .4) { R(lc, ux - Math.max(0, hw - 2), ty - 2, Math.max(0, hw - 2) * 2 + 1, 1, '#ee7b63'); R(lc, ux - hw + 1, ty - 1, hw * 2 - 1, 1, '#d0483f'); R(lc, ux - hw, ty, hw * 2 + 1, 1, '#d0483f'); for (let i = -hw; i <= hw; i += 2) R(lc, ux + i, ty + 1, 1, 1, '#8f2c34'); R(lc, ux, ty - 3, 1, 1, '#3e2731'); }   /* Schirm: rot mit hellem Scheitel, gezackter Rand */
             else R(lc, ux, uy - pl - 1, 1, 1, '#d0483f'); }
-          if (jet) for (const fx2 of [o.x + 10, o.x + 20]) { const fy2 = o.y + S2.h + 1, fl = 2 + Math.floor(Math.random() * 3); R(lc, fx2, fy2, 5, fl, '#ff7a2c'); R(lc, fx2 + 1, fy2, 3, fl - 1, '#ffd56a'); if (!hidden(fx2 + 2, fy2)) L.push({ x: fx2, y: fy2, w: 5, h: fl, c: '#ff9a3c', fire: true }); if (Math.random() < .4) { puff(fx2 + 3, fy2 + 3, 'smoke'); if (dep !== null) parts[parts.length - 1].z = dep; } }   /* Düsen unter den Stiefeln; der Rauch merkt sich die Tiefe des Mechas */
+          if (flyS) { const sx = q => FL ? o.x + S2.w + 1 - q : o.x + q, nx = sx(23), ny = o.y + 20, fl = 8 + Math.floor(Math.random() * 5), bk = FL ? -1 : 1;   /* v158: Schubdüse am Rückentank feuert schräg nach hinten unten, dazu kleine Stiefeldüse */
+            for (let i = 0; i < fl; i++) { const w2 = Math.max(1, 5 - Math.floor(i / 2.5)); R(lc, nx - 2 + Math.round(i * .6 * bk), ny + i, w2, 1, i < 3 ? '#fff3c0' : i < fl * .45 ? '#ffd56a' : i < fl - 2 ? '#ff9a3c' : '#ff7a2c'); }
+            const fx3 = sx(15), fy3 = o.y + S2.h + 1, f3 = 3 + Math.floor(Math.random() * 3); R(lc, fx3 - 3, fy3, 6, f3, '#ff7a2c'); R(lc, fx3 - 2, fy3, 4, f3 - 1, '#ff9a3c'); R(lc, fx3 - 1, fy3, 2, f3 - 2, '#ffd56a');
+            if (!hidden(nx, ny)) L.push({ x: nx - 3, y: ny, w: 7, h: fl, c: '#ff9a3c', fire: true }); if (Math.random() < .5) { puff(nx + bk * 3, ny + fl, 'smoke'); if (dep !== null) parts[parts.length - 1].z = dep; } }
+          else if (jet) { for (const hx3 of [4, 28]) { const fx2 = o.x + 1 + hx3, fy2 = o.y + 1 + 26 + (pose.bob || 0), fl = 4 + Math.floor(Math.random() * 3); R(lc, fx2 - 2, fy2, 5, fl, '#ff7a2c'); R(lc, fx2 - 1, fy2, 3, fl - 1, '#ff9a3c'); R(lc, fx2, fy2, 1, fl - 2, '#fff3c0'); if (!hidden(fx2, fy2)) L.push({ x: fx2 - 2, y: fy2, w: 5, h: fl, c: '#ff9a3c', fire: true }); }   /* v158: Handdüsen */
+            for (const fx2 of [o.x + 9, o.x + 19]) { const fy2 = o.y + S2.h + 1, fl = 5 + Math.floor(Math.random() * 4); R(lc, fx2, fy2, 7, fl, '#ff7a2c'); R(lc, fx2 + 1, fy2, 5, fl - 2, '#ff9a3c'); R(lc, fx2 + 3, fy2, 1, fl - 4, '#fff3c0');   /* v158: größere Düsenflammen, genau unter den Stiefeln */ if (!hidden(fx2 + 2, fy2)) L.push({ x: fx2, y: fy2, w: 5, h: fl, c: '#ff9a3c', fire: true }); if (Math.random() < .4) { puff(fx2 + 3, fy2 + 3, 'smoke'); if (dep !== null) parts[parts.length - 1].z = dep; } } }   /* Düsen unter den Stiefeln; der Rauch merkt sich die Tiefe des Mechas */
           if (beam && n > .3 && !jet) { const ex = side && !jet ? (FL ? o.x + S2.w - 8 : o.x + 9) : o.x + 1 + 16 + pose.head, ey = side && !jet ? o.y + 8 : o.y + 1 + 8 + pose.bob; SL = { x: ex, y: ey, tx: beam.tx, ty: beam.ty, a: Math.min(1, (n - .3) / .2) }; }   /* Gebäude vorn verdecken den Kegel */
           if (birdsOn !== null) { const w = birdsOn, hx = o.x + 1 + 27, hy = o.y + 1 + 10 + pose.bob - 2, hd = o.x + 1 + 16 + pose.head, hdy = o.y + 1 + pose.bob;   /* zwei Vögel landen auf der Faust, einer auf dem Kopf */
             [[hx - 1, hy, 1.5, -1], [hx + 2, hy, 2.4, 1], [hd, hdy, 3.4, -1]].forEach(([bx, by, t0, f], j) => { const tin = w - t0, tout = w - 19.3 - j * .2;
@@ -433,7 +440,7 @@ const SCENE = (() => {
         if (fly) { const ph = glide ? 1 : Math.floor(time * 7) % 4, dy = [-2, 0, 2, 0][ph];   /* Flügel: oben, Mitte, unten, Mitte; beim Gleiten ausgebreitet */
           for (const sd of [-1, 1]) for (let i = 0; i < 5; i++) { const wx = sd < 0 ? ox - 3 - i : ox + 3 + i, wy = oy + 2 + Math.round(dy * (i + 1) / 5); R(lc, wx, wy, 1, i < 3 ? 2 : 1, i === 4 ? '#5c3a2e' : '#7f5236'); } }
         else { R(lc, ox - 2, oy - 1, 1, 1, '#5c3a2e'); R(lc, ox + 2, oy - 1, 1, 1, '#5c3a2e'); R(lc, ox - 1, oy + 6, 1, 1, '#e8a83a'); R(lc, ox + 1, oy + 6, 1, 1, '#e8a83a'); }
-        if (!blink) { R(lc, ox - 1, oy + 1, 1, 1, '#ffd56a'); R(lc, ox + 1, oy + 1, 1, 1, '#ffd56a'); L.push({ x: ox - 1, y: oy + 1, w: 3, h: 1, c: '#ffd56a', fire: true, a: .35 }); }
+        if (!blink) { R(lc, ox - 1, oy + 1, 1, 1, '#c8902e'); R(lc, ox + 1, oy + 1, 1, 1, '#c8902e'); }   /* v156: Augen bernsteinfarben, leuchten nicht (auch nicht im Nebel) */
         if (!fly) HIT.owl = { x: ox - 4, y: oy - 2, w: 9, h: 10, gim: 'owl' }; else delete HIT.owl;   /* antippbar, wenn sie im Baum sitzt */
         if (!fly && Math.random() < dt * .04) SFX.play('hoot', { pan: SFX.panX(ox), vol: .9, gap: 20 });   /* Eule ruft selten und leise */ } }
     // ---- Hof: feste Ausstattung ----
@@ -473,7 +480,7 @@ const SCENE = (() => {
       const c = WORKERS.crew('hof', Math.min(5, Math.max(1, nW)), sp2, 'small', 36, 286), cw = rainOut ? nightOnly(c, c => nt ? [c[0]] : [], 12) : nt ? nightOnly(c, c => [c[0]]) : c;   /* Regen: alle laufen zügig ins Trockene; nachts bleibt nur der Nachtwächter draußen */
       if (st.fw !== undefined) watch(c); else WORKERS.step(cw, dt);
       add(G + 5, () => { WORKERS.draw(lc, rainOut ? c : cw, G + 4, time);   /* bei Regen sieht man die anderen hinauslaufen */ if (nt) { const a = c[0], fc = (a.st === 'walk' ? a.dir : a.face) || 1, lx = Math.round(a.x) + (fc > 0 ? 3 : -3), ly = G - 1 + (a.st === 'walk' && Math.floor(a.dist / 3) % 2 ? 1 : 0);   /* Laterne in der Hand */
-        R(lc, lx, ly - 1, 1, 1, '#3e2731'); R(lc, lx, ly, 1, 2, '#ffd56a'); L.push({ x: lx, y: ly, w: 1, h: 2, c: '#ffd56a', fire: true, pool: { x: lx, y: G + 5 } }); if (a.st === 'walk' && Math.random() < dt * .12) SFX.play('lantern', { pan: SFX.panX(lx), vol: .6, gap: 5 }); } }); }
+        R(lc, lx, ly - 1, 1, 1, '#3e2731'); R(lc, lx, ly, 1, 2, '#ffd56a'); L.push({ x: lx, y: ly, w: 1, h: 2, c: '#ffd56a', fire: true, move: 1, laterne: 1, pool: { x: lx, y: G + 5 } }); if (a.st === 'walk' && Math.random() < dt * .12) SFX.play('lantern', { pan: SFX.panX(lx), vol: .6, gap: 5 }); } }); }
     // Spaziergänger unten auf der Uferpromenade: bleiben stehen, schauen aufs Wasser, gehen weiter
     PROMC = null; ANG = null; if (spots.length > 1) { const ps = [{ x: 44, act: 'pier', face: 1 }, { x: 110, act: 'idle', face: 1 }, { x: 186, act: 'idle', face: -1 }, { x: 262, act: 'idle', face: 1 }, { x: 342, act: 'pond', face: -1 }];
       const c2 = WORKERS.crew('prom', Math.max(1, Math.min(2, Math.ceil(nW / 2))), ps, 'small', 28, 372), ntP = nightW && st.fw === undefined, rainP = wet && st.fw === undefined;
@@ -489,7 +496,7 @@ const SCENE = (() => {
     // Gabelstapler auf dem Fahrweg, Katzenroboter auf dem Grünstreifen
     if (st.owned.stapler) { const ph = time * .05, tgt = workC ? 205 + Math.sin(ph) * 95 : 318;   /* bei Gewitter abgestellt */   /* nachts weiter rechts am Weg abgestellt, gut sichtbar */ if (FK.x === undefined) FK.x = tgt; const dx = tgt - FK.x, mv = Math.max(-dt * 6, Math.min(dt * 6, dx)); FK.x += mv; if (Math.abs(mv) > .001) FK.dir = Math.sign(mv); const x = FK.x, moving = Math.abs(mv) > .001;   /* fährt abends zum Parkplatz und morgens wieder los */
       if (moving) SFX.hum('forklift', .18, SFX.panX(x)); SFX.edge('forkBeep', moving && FK.dir < 0 && Math.floor(time * 1.4) % 2 === 0, 'beep', { pan: SFX.panX(x), vol: .7 });   /* rückwärts piept er */ add(G + 4, () => fx('stapler', blit(lc, !workC && !moving ? FORK_E : FORK, x, G + 4, null, (FK.dir || 1) < 0))); }   /* abgestellt: Fahrer hat Feierabend, Gabel leer */
-    if (st.owned.katze) { const c = ART.catStep(CATST, dt, time, 50, 290, 6, .55); if (Math.random() < dt * .02) SFX.play('meow', { pan: SFX.panX(c.x), vol: .7, gap: 20 }); add(VERGE_B + 1, () => { const o = blit(lc, c.fr, c.x, VERGE_B + 1, null, c.flip); fx('katze', o); L.push({ x: o.x + (c.flip ? c.fr.w - 1 - c.fr.eye.x : c.fr.eye.x), y: o.y + c.fr.eye.y, w: 1, h: 1, c: '#7fe0ff', fire: true, a: .6 }); }); }
+    if (st.owned.katze) { const c = ART.catStep(CATST, dt, time, 50, 290, 6, .55); if (Math.random() < dt * .02) SFX.play('meow', { pan: SFX.panX(c.x), vol: .7, gap: 20 }); add(VERGE_B + 1, () => { const o = blit(lc, c.fr, c.x, VERGE_B + 1, null, c.flip); fx('katze', o); if (c.fr.eye) L.push({ x: o.x + (c.flip ? c.fr.w - 1 - c.fr.eye.x : c.fr.eye.x), y: o.y + c.fr.eye.y, w: 1, h: 1, c: '#7fe0ff', fire: true, a: .6 }); }); }
     // Lieferwagen: fährt durch das Tor herein und parkt auf dem Fahrweg
     delete HIT.truck;
     // Lieferwagen fährt auf dem Weg herein und biegt in die Haltebucht
@@ -514,12 +521,15 @@ const SCENE = (() => {
     stepParts(dt);
     const smc = rgb(mix(hx('#d6d6de'), k.bot, .35));
     let behind = false; PG.clearRect(0, 0, W, H);
-    for (const p of parts) { const a = Math.max(0, p.life / p.max), g3 = p.z !== undefined && p.z < ART.PROM + 1 ? (behind = true, PG) : sc; g3.globalAlpha = p.kind === 'smoke' ? a * .55 : .9; R(g3, p.x, p.y, p.sz, p.sz, p.kind === 'smoke' ? smc : p.c); }
+    for (const p of parts) { const a = Math.max(0, p.life / p.max), g3 = p.z !== undefined && p.z < ART.PROM + 1 ? (behind = true, PG) : sc; g3.globalAlpha = p.kind === 'smoke' ? a * .55 : p.soft ? a * p.soft : .9; R(g3, p.x, p.y, p.sz, p.sz, p.kind === 'smoke' ? smc : p.c); }
     sc.globalAlpha = 1; PG.globalAlpha = 1;
     if (behind) { PG.globalCompositeOperation = 'destination-out'; for (const f of FRONTS) PG.drawImage(f.c, f.x, f.y); PG.globalCompositeOperation = 'source-over'; sc.drawImage(PC, 0, 0); }   /* Rauch hinter dem Prüflabor bleibt hinter dem Prüflabor */
     const nL = Math.max(n, cl * .5), damp = 1 - .45 * cl;   /* Regen: Lichter gehen schon bei trübem Tag an, ihr Schein ist aber gedämpft */
-    const pools = g2 => { if (nL > .2) for (const l of L) if (l.pool) { const a = (nL - .2) * .45 * damp; for (let i = 0; i < 4; i++) { g2.globalAlpha = a * (.18 + i * .1); const w = 26 - i * 6; R(g2, l.pool.x - w / 2, l.pool.y - 1 - Math.floor(i / 2), w, 3 - Math.floor(i / 2), '#ffd98a'); } g2.globalAlpha = 1; } };
-    ART.glowPass(sc, L, l => (l.fire ? Math.max(nL, .35) : nL) * damp * (l.a === undefined ? 1 : l.a), !SL ? pools : (g2 => { pools(g2);   // Suchscheinwerfer aus den Augen des Mechas: Kegel und heller Fleck am Boden; Gebäude vorn verdecken ihn
+    const NEU = typeof LICHT !== 'undefined' && LICHT.an();   /* v154: neues Licht – Laternenkegel und Fensterschein kommen aus licht.js */
+    if (NEU) { const [za, zb, zf] = LICHT.zeitGewicht(t), fa = LICHT.HOF[za].fenster * (1 - zf) + LICHT.HOF[zb].fenster * zf;
+      if (fa > .01) { sc.globalAlpha = fa; sc.fillStyle = '#ffd56a'; for (const l of L) if (!l.fire && !l.pool) sc.fillRect(l.x, l.y, l.w, l.h); sc.globalAlpha = 1; } }
+    const pools = g2 => { if (NEU) return; if (nL > .2) for (const l of L) if (l.pool) { const a = (nL - .2) * .45 * damp; for (let i = 0; i < 4; i++) { g2.globalAlpha = a * (.18 + i * .1); const w = 26 - i * 6; R(g2, l.pool.x - w / 2, l.pool.y - 1 - Math.floor(i / 2), w, 3 - Math.floor(i / 2), '#ffd98a'); } g2.globalAlpha = 1; } };
+    ART.glowPass(sc, NEU ? [] : L, l => (l.fire ? Math.max(nL, .35) : nL) * damp * (l.a === undefined ? 1 : l.a), !SL ? pools : (g2 => { pools(g2);   // Suchscheinwerfer aus den Augen des Mechas: Kegel und heller Fleck am Boden; Gebäude vorn verdecken ihn
       CG.clearRect(0, 0, W, H); const gr = CG.createLinearGradient(SL.x, SL.y, SL.tx, SL.ty); gr.addColorStop(0, 'rgba(255,240,190,.4)'); gr.addColorStop(1, 'rgba(255,240,190,.08)');
       CG.fillStyle = gr; CG.beginPath(); CG.moveTo(SL.x, SL.y); CG.lineTo(SL.tx - 16, SL.ty); CG.lineTo(SL.tx + 16, SL.ty); CG.closePath(); CG.fill();
       CG.fillStyle = 'rgba(255,240,190,.2)'; CG.beginPath(); CG.ellipse(SL.tx, SL.ty, 17, 4, 0, 0, Math.PI * 2); CG.fill();
@@ -550,7 +560,7 @@ const SCENE = (() => {
       if (mq > .02) for (let i = 0; i < 5; i++) { const yy = WATER + 3 + i * 6, off = (time * (2 + i) + i * 70) % (W + 120) - 60; ctx.globalAlpha = mq * (.32 - i * .04); R(ctx, Math.round(off) - 60, yy, 140, 3, '#f4f6fb'); R(ctx, Math.round(off + 180) % (W + 120) - 60, yy + 2, 110, 2, '#f4f6fb'); } ctx.globalAlpha = 1; }
     {   // Entenfamilie: schwimmt am Tag dicht am Ufer entlang, dreht manchmal eine Runde am Steg und schwimmt rechts ganz aus dem Bild
       const P = 120, cyD = Math.floor(time / P), u = time % P, loop = cyD % 2 === 0, LA = 86, LO = loop ? 47 : 0, LEN = LA + LO + (W + 40 - 66), SP = 7;
-      if (DK.cyc !== cyD) { DK.cyc = cyD; DK.day = n < .4 && !gew; }   /* bei Gewitter bleiben die Enten weg, Regen stört sie nicht */
+      if (DK.cyc !== cyD) { DK.cyc = cyD; DK.day = n < .4 && !gew && ART.selten('enten', cyD, .25); }   /* v156: nur alle paar Spieltage, zufällig */   /* bei Gewitter bleiben die Enten weg, Regen stört sie nicht */
       const at = d => { if (d < LA) return { x: -20 + d, y: WATER + 5, f: 1 }; if (d < LA + LO) { const a = (d - LA) / LO * Math.PI * 2; return { x: 66 + 10 * Math.sin(a), y: WATER + 10 - 5 * Math.cos(a), f: Math.cos(a) >= 0 ? 1 : -1 }; } const d2 = d - LA - LO; return { x: 66 + d2, y: WATER + 5 + Math.round(Math.sin(d2 * .05)), f: 1 }; };
       if (DK.boost > 0) { DK.boost -= dt; DK.extra = (DK.extra || 0) + dt * SP * 1.6; } if (DK.cyc2 !== cyD) { DK.cyc2 = cyD; DK.extra = 0; }   /* angetippt: kurz schneller */
       const d0 = u * SP + (DK.extra || 0); delete HIT.ducks; if (DK.day && d0 < LEN + 30) { const mq = at(Math.min(d0, LEN)); if (mq.x > -6 && mq.x < W + 6) HIT.ducks = { x: Math.round(mq.x) - 22, y: Math.round(mq.y) - 6, w: 30, h: 10, gim: 'ducks' };
@@ -574,7 +584,8 @@ const SCENE = (() => {
       ctx.save(); ctx.filter = 'brightness(' + Math.round((1 - n * .45) * 100) + '%)'; ART.blit(ctx, sp, ax, ay, null, false); ctx.restore();
       ctx.globalAlpha = .8; for (let i = 0; i <= 8; i++) R(ctx, ax + 3 + i, ay - 9 - Math.round(i * .6), 1, 1, '#7f5236'); ctx.globalAlpha = .35; for (let yy = ay - 14; yy < by; yy += 2) R(ctx, Math.round(ax + 11 + (bx - ax - 11) * (yy - ay + 14) / (by - ay + 14)), yy, 1, 1, '#d8d2cc'); ctx.globalAlpha = 1;
       R(ctx, bx, by, 1, 1, '#ff5a4a'); R(ctx, bx, by + 1, 1, 1, '#f4ecdc'); if (bite) { ctx.globalAlpha = .5; R(ctx, bx - 2, by + 2, 5, 1, '#e8f6ff'); ctx.globalAlpha = 1; } SFX.edge('bite', bite, 'plop', { pan: SFX.panX(bx), vol: .7 });
-      R(ctx, PX - 4, ay - 3, 2, 3, '#ffd56a'); R(ctx, PX - 4, ay - 4, 2, 1, '#3e2731'); glow(ctx, { x: PX - 4, y: ay - 3, w: 2, h: 3, c: '#ffd56a' }, n); }
+      R(ctx, PX - 4, ay - 3, 2, 3, '#ffd56a'); R(ctx, PX - 4, ay - 4, 2, 1, '#3e2731'); L.push({ x: PX - 4, y: ay - 3, w: 2, h: 3, c: '#ffd56a', fire: true, laterne: 1 });   /* v156: Laterne des Anglers leuchtet (licht.js) */
+      if (!(typeof LICHT !== 'undefined' && LICHT.an())) glow(ctx, { x: PX - 4, y: ay - 3, w: 2, h: 3, c: '#ffd56a' }, n); }
     {   // nachts: Ruderboot mit Laterne zieht langsam vorbei (beim Start der Runde entschieden, fährt immer ganz aus dem Bild). v140: größeres Boot, Ruderer mit sichtbarem Ruderschlag; vor dem Steg gezeichnet
       const P = 150, u = (time + 40) % P, cyR = Math.floor((time + 40) / P); if (RB.cyc !== cyR) { RB.cyc = cyR; RB.night = n > .55 && !wet; }   /* kein Ruderboot bei Regen */
       if (RB.night && u < 110) { const x = Math.round(W + 30 - u * (W + 60) / 110), y = WATER + 26, bx0 = x - 14, top = y - 6;
@@ -594,10 +605,10 @@ const SCENE = (() => {
         if (drive) { ctx.globalAlpha = .55; R(ctx, blx - 2 - Math.round(q * 2), bly + 2, 2 + Math.round(q * 3), 1, '#e8f6ff'); ctx.globalAlpha = 1; }   /* Wirbel am Blatt */
         SFX.edge('oar', drive && q < .15, 'oar', { pan: SFX.panX(x), vol: .55 });
         const lx = bx0 + 25; R(ctx, lx, top - 7, 1, 8, col('#5c3a2e')); R(ctx, lx - 1, top - 8, 3, 1, col('#3e2731')); R(ctx, lx - 1, top - 7, 3, 3, '#ffd56a'); R(ctx, lx, top - 6, 1, 1, '#fff3c0');   /* Laterne am Heck */
-        glow(ctx, { x: lx - 1, y: top - 7, w: 3, h: 3, c: '#ffd56a' }, n * .9); ctx.globalAlpha = n * .35; R(ctx, lx - 1, y + 3, 3, 1, '#ffd56a'); R(ctx, lx, y + 5, 1, 1, '#ffd56a'); R(ctx, lx - 2, y + 7, 2, 1, '#ffd56a'); ctx.globalAlpha = 1; } }   /* Spiegelung der Laterne */
+        L.push({ x: lx - 1, y: top - 7, w: 3, h: 3, c: '#ffd56a', fire: true, move: 1, laterne: 1 }); if (!(typeof LICHT !== 'undefined' && LICHT.an())) glow(ctx, { x: lx - 1, y: top - 7, w: 3, h: 3, c: '#ffd56a' }, n * .9); ctx.globalAlpha = n * .35; R(ctx, lx - 1, y + 3, 3, 1, '#ffd56a'); R(ctx, lx, y + 5, 1, 1, '#ffd56a'); R(ctx, lx - 2, y + 7, 2, 1, '#ffd56a'); ctx.globalAlpha = 1; } }   /* Spiegelung der Laterne */
     {   // Raddampfer: kommt selten, legt kurz am unteren Ende des Stegs an (ohne zu wenden) und fährt mit der Strömung weiter
       const P = 150; let t2 = time % P; const stopX = PX + 13, y = WATER + 27, cyS = Math.floor(time / P);   /* legt so an, dass der Rumpf das Stegende überdeckt */
-      if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5 && !gew; }   /* fährt nur am Tag und nicht bei Gewitter (beim Start der Runde entschieden) */
+      if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5 && !gew && ART.selten('dampfer', cyS, .25); }   /* v156: nur alle paar Spieltage, zufällig */   /* fährt nur am Tag und nicht bei Gewitter (beim Start der Runde entschieden) */
       let x = null, moving = true; if (!NB.day) t2 = 999;
       if (t2 < 45) { const q = t2 / 45; x = -50 + (stopX + 50) * (1 - (1 - q) * (1 - q)); }
       else if (t2 < 53) { x = stopX; moving = false; }
@@ -619,6 +630,12 @@ const SCENE = (() => {
         if (n > .3) { ctx.globalAlpha = n * .8; for (let xx = sx + 8; xx < sx + 39; xx += 3) if (xx < sx + 15 || xx > sx + 27) R(ctx, xx, y - 13 + bobY, 1, 1, '#ffd56a'); }
         ctx.globalAlpha = 1; }
     }
+    if (NEU) { const fuss = l => l.pool ? l.pool.y : l.y + l.h, hinten = l => !!l.pool && FRONTS.some(f => fuss(l) < f.y + f.c.height - 2 && l.x > f.x - 40 && l.x < f.x + f.c.width + 40);   /* v155: Lampe steht hinter einem vorderen Gebäude */
+      L.forEach(l => { l.hinten = hinten(l); }); window.__LICHTL = L;
+      const LH = L.filter(l => l.a === undefined || l.pool).map(l => ({ x: l.x, y: l.y, w: l.w, h: l.h, fire: !!l.fire, pool: !!l.pool, c: l.c, move: !!l.move, laterne: !!l.laterne, hinten: hinten(l) }));   /* bewegte Lichter (Scheinwerfer, Augen) zählen nicht, der Nachtwächter schon (move) */
+      LMG.clearRect(0, 0, W, H); if (GRD) LMG.drawImage(GRD, 0, 0); LMG.drawImage(layer, 0, 0); LMG.fillStyle = '#fff'; LMG.fillRect(0, WATER, W, H - WATER);
+      LICHT.apply(ctx, W, H, 'hof', t, { L: LH, sig: LH.filter(l => !l.move).map(l => l.x + ',' + l.y + (l.pool ? 'p' : l.fire ? 'f' : '') + (l.hinten ? 'h' : '')).join(';') }, { mask: LMK, fronts: FRONTS }); }
+    if (wx.fog > .01) { const lampN = Math.min(1, Math.max(0, (Math.max(nL, .5 * wx.fog) - .2) / .5)); ART.nebel(ctx, k, wx, L, lampN, time, G, WATER); }   /* v152: Nebel über dem ganzen Hof, Laternen mit Lichthof */
     if (rn > .01) {   // Regen: schräge Tropfenstreifen in zwei Tiefen, Ringe auf dem Wasser, kleine Spritzer auf den Wegen
       const dim = 1 - .35 * n; ART.regen(ctx, wx, time, dt, n, H);
       let sp = (70 + 40 * stm) * rn * (dt || 0); while (Math.random() < sp--) { const w = Math.random() < .65; RIP.push({ w, x: Math.floor(Math.random() * W), y: w ? WATER + 2 + Math.floor(Math.random() * (H - WATER - 3)) : Math.random() < .5 ? G + 4 + Math.floor(Math.random() * 4) : ART.PROM + 1 + Math.floor(Math.random() * 5), life: 0 }); }

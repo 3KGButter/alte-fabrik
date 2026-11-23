@@ -74,10 +74,12 @@ const BADGEROOM = (() => {
       HITS.push({ i, x: x - 24, y: y - 24, w: 48, h: 48 });
       if (hover === i) { ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 1; ctx.strokeRect(x - 25.5, y - 25.5, 51, 51); }
     });
+    const NEU = typeof LICHT !== 'undefined' && LICHT.an();
     // Strahler und Lichtkegel nach oben
     SPOTS.forEach(([sx, dir], i) => {
       ctx.drawImage(dir > 0 ? SPOT.c : SPOT.f, sx - 4, FL - 11);
       const flick = .94 + .06 * Math.sin(time * 2.3 + i), len = 185;
+      if (NEU) { R(ctx, sx - 1, FL - 7, 3, 1, '#fff3c0'); return; }   /* v154: Kegel kommen aus licht.js */
       ctx.globalCompositeOperation = 'lighter';
       for (let j = 1; j < len; j++) {
         const t = j / len, fall = Math.pow(1 - t, 1.05), w = 4 + j * 1.05, cx = sx + dir * j * .3;
@@ -86,6 +88,7 @@ const BADGEROOM = (() => {
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
       R(ctx, sx - 1, FL - 7, 3, 1, '#fff3c0');
     });
+    if (NEU) LICHT.apply(ctx, W, H, 'ehrenhalle', .95);   /* v154: immer Nachtbeleuchtung */
     // Staub im Licht
     for (const m of motes) { const x = (m.x + Math.sin(time * .2 * m.s + m.p) * 8 + W) % W, y = 20 + ((m.y - time * 2 * m.s) % 170 + 170) % 170; const near = Math.min(...SPOTS.map(([s, d]) => Math.abs(s + d * (FL - y) * .3 - x))); const a = Math.max(0, 1 - near / 40) * .5; if (a > .03) { ctx.globalAlpha = a; R(ctx, x, y, 1, 1, '#fff6e0'); } }
     ctx.globalAlpha = 1;

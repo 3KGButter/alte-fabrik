@@ -54,7 +54,12 @@ window.MockServer = (() => {
   function answer(state, c) {
     return Object.assign(antwort_({ tag: 'Vorschau', klasse: 'Vorschau' }, state, c), { now: Date.now() + offset, mock: true });
   }
-  async function call(req) {
+  async function call(req) {   /* v150: wie der Server: mit kurz: 1 ohne Regeln */
+    const r = await call0(req);
+    if (req && req.kurz && r && r.rules && req.action && req.action !== 'login') { const k = Object.assign({}, r); delete k.rules; return k; }
+    return r;
+  }
+  async function call0(req) {
     await new Promise(r => setTimeout(r, 200));
     if (String(req.tag || '').toLowerCase() === 'leitstand') return leitstandMock();   /* Leitstand der Lehrkraft mit erfundenen Gamertags */
     const c = ctx(), state = load(c);
@@ -82,7 +87,7 @@ window.MockServer = (() => {
     const lvl = xp => { let l = LV[0]; LV.forEach(e => { if (xp >= e.ab) l = e; }); return l; };
     const profile = {}, done = {}; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     [['11T1', 24], ['11T2', 21], ['11T3', 25], ['11T4', 18]].forEach(([kl, n], k) => { for (let i = 0; i < n; i++) {
-      const tag = T[i] + (k ? k + 1 : ''), xp = Math.round(300 + rnd() * rnd() * 9000 + (k === 2 ? 900 : 0)), l = lvl(xp);
+      const tag = T[i] + (k ? k + 1 : ''), xp0 = Math.round(300 + rnd() * rnd() * 9000 + (k === 2 ? 900 : 0)), xp = k === 0 && i >= n - 3 ? 0 : xp0, l = lvl(xp);   /* 11T1: drei Schüler auf Game over */
       profile[tag] = { xp, level: parseInt(l.level, 10) || 0, stufe: l.stufe, klasse: kl };
       let left = xp; done[tag] = QUESTS.map(q => { if (left >= q.xp) { left -= q.xp; return '1'; } return '0'; }).join(''); } });
     const snap = { quests: QUESTS, done, profile, ranks: {}, levels: LV, stand: new Date().toISOString(), at: Date.now() };

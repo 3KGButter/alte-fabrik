@@ -14,8 +14,12 @@ const LEITRAUM = (() => {
   const mix = (a, b, q) => { const h = s => [1, 3, 5].map(i => parseInt(s.slice(i, i + 2), 16)); const A = h(a), B = h(b); return 'rgb(' + A.map((v, i) => Math.round(v + (B[i] - v) * q)).join(',') + ')'; };
   // Himmel über den Tag: [Tageszeit 0..1, oben, unten, Sterne]
   const HIMMEL = [[0, '#070b22', '#18204a', 1], [.21, '#0b1030', '#26305e', 1], [.27, '#3a3f7a', '#f0a07a', .3], [.33, '#5e9ad8', '#cfe2ee', 0], [.7, '#5e9ad8', '#d6e8f2', 0], [.78, '#4a3a7a', '#f08a5a', .2], [.85, '#151a42', '#3a2e5e', .9], [1, '#070b22', '#18204a', 1]];
-  function tag() { if (window.FORCE_T !== undefined) return window.FORCE_T; const d = new Date(); return (d.getHours() + d.getMinutes() / 60) / 24; }
-  function himmel(t) { let i = 0; while (i < HIMMEL.length - 2 && t > HIMMEL[i + 1][0]) i++; const a = HIMMEL[i], b = HIMMEL[i + 1], q = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); return { o: mix(a[1], b[1], q), u: mix(a[2], b[2], q), st: a[3] + (b[3] - a[3]) * q }; }
+  /* v153: dieselbe Spielzeit wie bei den Schülern (Spieltag von DAY_MINUTES Minuten, Server-Uhr über game.js) – Leitstand und Werk laufen parallel */
+  function tag() { if (window.FORCE_T !== undefined) return window.FORCE_T; if (typeof window.SPIELTAG === 'function') return window.SPIELTAG(); const p = (window.DAY_MINUTES || 10) * 60000; return ((Date.now() % p) / p + .35) % 1; }
+  const hexOf = a => '#' + a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  function himmel(t) { if (typeof ART !== 'undefined' && ART.skyAt) { const k = ART.skyAt(t); return { o: hexOf(k.top), u: hexOf(k.bot), st: Math.max(0, Math.min(1, (k.night - .3) / .6)) }; }   /* v153: Himmelsfarben wie im Werkshof */
+    return himmel0(t); }
+  function himmel0(t) { let i = 0; while (i < HIMMEL.length - 2 && t > HIMMEL[i + 1][0]) i++; const a = HIMMEL[i], b = HIMMEL[i + 1], q = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); return { o: mix(a[1], b[1], q), u: mix(a[2], b[2], q), st: a[3] + (b[3] - a[3]) * q }; }
   const ic = k => typeof ICONS !== 'undefined' && ICONS.canvas ? ICONS.canvas[k] : null;
 
   function start(r, getTakt) {
@@ -60,6 +64,8 @@ const LEITRAUM = (() => {
       const sx = f.w > 30 ? 4 : 3; for (let i = 1; i < sx; i++) F(f.x + i * f.w / sx, f.y + 2, 1, f.h - 2, '#3a2e22');
       for (let y = f.y + f.w / 2; y < f.y + f.h - 2; y += 9) F(f.x, y, f.w, 1, '#3a2e22');
       F(f.x - 3, f.y + f.h + 2, f.w + 6, 2, '#6a5440'); F(f.x - 3, f.y + f.h + 4, f.w + 6, 1, '#2a1e16');   // Fensterbank
+      { const cx = Math.round(f.x + f.w / 2), y0 = Math.round(f.y + f.h + 5);   /* v153: Wandleuchte unter der Fensterbank, leuchtet auf Band und Boden */
+        F(cx, y0, 1, 2, '#3a2e22'); F(cx - 2, y0 + 2, 5, 1, '#2a4a40'); F(cx - 3, y0 + 3, 7, 1, '#3e7a68'); F(cx - 3, y0 + 3, 2, 1, '#5e9a86'); F(cx - 1, y0 + 4, 3, 1, '#ffd56a'); }
     });
     // Boden: Betonplatten, Warnkante am Band, gelbe Laufwegmarkierung
     const b = L.band, fy = b.gurt + 7;
@@ -79,14 +85,15 @@ const LEITRAUM = (() => {
     g.drawImage(wand, 0, 0);
     band(dt);
     leute(dt);
+    if (typeof LICHT !== 'undefined') LICHT.apply(g, W, H, 'leitraum', t, { lay, sig: lay.fenster.map(f => f.x + ',' + f.y + ',' + f.w + ',' + f.h).join(';') + '|' + lay.band.y }, { mask: wand });   /* v154: Licht aus pxl */
   }
   // ---------- Himmel ----------
   function himmelMalen(t, s, dt) {
     const gr = g.createLinearGradient(0, 0, 0, H * .9); gr.addColorStop(0, s.o); gr.addColorStop(1, s.u); g.fillStyle = gr; g.fillRect(0, 0, W, H);
     if (s.st > .05) STARS.forEach(st => { const a = s.st * (.45 + .55 * Math.abs(Math.sin(zeit * (st.b ? 2.2 : .7) + st.p))); g.fillStyle = `rgba(255,248,220,${a.toFixed(2)})`; g.fillRect(Math.round(st.x), Math.round(st.y), 1, 1); });
-    const tagq = Math.max(0, Math.min(1, (t - .25) / .5));
-    if (t > .25 && t < .8) { const x = W * (.05 + .9 * tagq), y = H * (.45 - .35 * Math.sin(tagq * Math.PI)); g.fillStyle = 'rgba(255,240,170,.25)'; g.beginPath(); g.arc(Math.round(x), Math.round(y), 9, 0, 7); g.fill(); g.fillStyle = '#fff2b0'; g.beginPath(); g.arc(Math.round(x), Math.round(y), 5, 0, 7); g.fill(); }
-    else { const q = ((t + .25) % 1) / .5, x = W * (.1 + .8 * Math.min(1, q)), y = H * .25; g.fillStyle = '#f4ecd0'; g.beginPath(); g.arc(Math.round(x), Math.round(y), 4, 0, 7); g.fill(); g.fillStyle = s.o; g.beginPath(); g.arc(Math.round(x) + 2, Math.round(y) - 1, 4, 0, 7); g.fill(); }
+    const tagq = Math.max(0, Math.min(1, (t - .2) / .58));
+    if (t > .2 && t < .78) { const x = W * (.05 + .9 * tagq), y = H * (.45 - .35 * Math.sin(tagq * Math.PI)); g.fillStyle = 'rgba(255,240,170,.25)'; g.beginPath(); g.arc(Math.round(x), Math.round(y), 9, 0, 7); g.fill(); g.fillStyle = '#fff2b0'; g.beginPath(); g.arc(Math.round(x), Math.round(y), 5, 0, 7); g.fill(); }
+    else { const q = ((t + .22) % 1) / .44, x = W * (.1 + .8 * Math.min(1, q)), y = H * .25; g.fillStyle = '#f4ecd0'; g.beginPath(); g.arc(Math.round(x), Math.round(y), 4, 0, 7); g.fill(); g.fillStyle = s.o; g.beginPath(); g.arc(Math.round(x) + 2, Math.round(y) - 1, 4, 0, 7); g.fill(); }
     const wolke = 1 - s.st;
     if (wolke > .1) CLOUDS.forEach(c => { c.x += c.v * dt; if (c.x > W + c.w) c.x = -c.w; const x = Math.round(c.x), y = Math.round(c.y); g.fillStyle = `rgba(255,255,255,${(.75 * wolke).toFixed(2)})`; g.fillRect(x, y, c.w, 3); g.fillRect(x + 3, y - 2, c.w * .5, 2); g.fillRect(x + c.w * .45, y - 3, c.w * .35, 3); g.fillStyle = `rgba(200,210,230,${(.6 * wolke).toFixed(2)})`; g.fillRect(x + 1, y + 3, c.w - 2, 1); });
     // Was am Himmel vorbeikommt: nur in den Fenstern zu sehen, deshalb dort starten

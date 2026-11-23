@@ -42,6 +42,9 @@ const LEITSTAND = (() => {
     return { pct: Math.max(0, Math.min(1, (xp - cur.ab) / (nx.ab - cur.ab))), rest: nx.ab - xp };
   }
   const lvTxt = l => (l === 0 || l === '0') ? '†' : esc(l);
+  const istGO = l => l === 0 || l === '0' || l === '†';
+  const lvSpan = l => istGO(l) ? '<span class="llv lgo" title="Game over">†</span>' : `<span class="llv">Lv ${esc(l)}</span>`;   /* v143: Game over nur als Kreuz */
+  const schnitt = k => { const m = k.liste.filter(e => (Number(e.xp) || 0) > 0); return m.length ? Math.round(m.reduce((a, e) => a + (Number(e.xp) || 0), 0) / m.length) : 0; };   /* v143: Schüler mit 0 XP zählen beim Durchschnitt nicht mit */
 
   function seiteHtml(pg) {
     if (pg.id === 'zaehler') {
@@ -51,33 +54,33 @@ const LEITSTAND = (() => {
         <div class="lkacheln"><div class="lkachel"><b>${fmt(D.schueler)}</b><span>Schüler im Werk</span></div><div class="lkachel"><b>${fmt(D.quests)}</b><span>erledigte Quests</span></div><div class="lkachel"><b>${fmt(badges)}</b><span>verliehene Badges</span></div><div class="lkachel"><b>${fmt(D.schueler ? D.gesamtXp / D.schueler : 0)}</b><span>Ø XP pro Schüler</span></div></div></div>`;
     }
     if (pg.id === 'top') {
-      return `<ol class="lliste ltop">${D.top.map(e => `<li class="${e.p <= 3 ? 'lp' + e.p : ''}"><span class="lplatz">${e.p}</span><span class="ltag">${esc(e.tag)}</span><span class="lkl" style="--kf:${klFarbe(e.klasse)}">${esc(e.klasse)}</span><span class="llv">Lv ${lvTxt(e.level)}</span><span class="lstufe">${esc(e.stufe)}</span><span class="lxp">${fmt(e.xp)} XP</span></li>`).join('')}</ol>`;
+      return `<ol class="lliste ltop">${D.top.map(e => `<li class="${e.p <= 3 ? 'lp' + e.p : ''}"><span class="lplatz">${e.p}</span><span class="ltag">${esc(e.tag)}</span><span class="lkl" style="--kf:${klFarbe(e.klasse)}">${esc(e.klasse)}</span>${lvSpan(e.level)}<span class="lstufe">${esc(e.stufe)}</span><span class="lxp">${fmt(e.xp)} XP</span></li>`).join('')}</ol>`;
     }
     if (pg.id === 'vergleich') {
       const chart = (titel, wert, einheit) => {
         const max = Math.max(1, ...D.klassen.map(wert));
         return `<figure class="lchart"><figcaption>${titel}</figcaption><div class="lbars">${D.klassen.map(k => `<div class="lbarcol"><span class="lbarval">${fmt(wert(k))}</span><div class="lbar" style="--h:${(wert(k) / max * 100).toFixed(1)}%;--kf:${klFarbe(k.klasse)}"></div><span class="lbarname">${esc(k.klasse)}</span></div>`).join('')}</div></figure>`;
       };
-      return `<div class="lcharts">${chart('Gesamt-XP je Klasse', k => k.summe, 'XP zusammen')}${chart('Durchschnitt XP pro Schüler', k => k.schnitt, 'XP pro Schüler')}</div>`;
+      return `<div class="lcharts">${chart('Gesamt-XP je Klasse', k => k.summe, 'XP zusammen')}${chart('Durchschnitt XP pro Schüler', schnitt, 'XP pro Schüler')}</div>`;
     }
     if (pg.id.startsWith('kl:')) {
       const k = D.klassen[pg.kl], half = Math.ceil(k.liste.length / 2);
-      const zeile = e => { const n = naechstes(e.xp); return `<li class="${e.p <= 3 ? 'lp' + e.p : ''}"><span class="lplatz">${e.p}</span><span class="ltag">${esc(e.tag)}</span><span class="llv">Lv ${lvTxt(e.level)}</span><span class="lxp">${fmt(e.xp)}</span>${n ? `<span class="lnext" title="${n.max ? 'höchstes Level' : 'noch ' + fmt(n.rest) + ' XP'}"><i style="width:${(n.pct * 100).toFixed(0)}%"></i></span>` : ''}</li>`; };
+      const zeile = e => { const n = naechstes(e.xp); return `<li class="${e.p <= 3 ? 'lp' + e.p : ''}"><span class="lplatz">${e.p}</span><span class="ltag">${esc(e.tag)}</span>${lvSpan(e.level)}<span class="lxp">${fmt(e.xp)}</span>${n && !istGO(e.level) ? `<span class="lnext" title="${n.max ? 'höchstes Level' : 'noch ' + fmt(n.rest) + ' XP'}"><i style="width:${(n.pct * 100).toFixed(0)}%"></i></span>` : '<span class="lnext lleerb" aria-hidden="true"></span>'}</li>`; };
       const cols = k.liste.length > 12 ? [k.liste.slice(0, half), k.liste.slice(half)] : [k.liste];
-      return `<div class="lklkopf" style="--kf:${klFarbe(k.klasse)}"><span>${fmt(k.anzahl)} Schüler</span><span>${fmt(k.summe)} XP zusammen</span><span>Ø ${fmt(k.schnitt)} XP</span><span class="lklhint">Balken: Weg bis zum nächsten Level</span></div>
+      return `<div class="lklkopf" style="--kf:${klFarbe(k.klasse)}"><span>${fmt(k.anzahl)} Schüler</span><span>${fmt(k.summe)} XP zusammen</span><span title="ohne Schüler mit 0 XP">Ø ${fmt(schnitt(k))} XP</span><span class="lklhint">Balken: Weg bis zum nächsten Level</span></div>
         <div class="lspalten" style="--rows:${Math.max(8, cols[0].length)}">${cols.map(c => `<ol class="lliste lkl" start="${c[0] ? c[0].p : 1}">${c.map(zeile).join('')}</ol>`).join('')}</div>`;
     }
     if (pg.id === 'level' && window.LEIT_TREPPE && D.levels.length) {   /* Entwurf: Levelstufen als Treppe */
       const anz = {}; D.klassen.forEach(k => k.liste.forEach(e => { const l = String(e.level || 0); anz[l] = (anz[l] || 0) + 1; }));
       const L = D.levels, n = L.length;
       return `<div class="ltreppe" style="--n:${n}">${L.map((e, i) => { const key = e.level === '†' ? '0' : String(e.level), a = anz[key] || 0;
-        return `<div class="lstufeT" style="--i:${i}"><div class="lsinfo"><b>${esc(e.level)}</b><span class="lsname">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lsxp">ab ${fmt(e.ab)} XP</span>${a ? `<span class="lsanz">${a} ${a === 1 ? 'Schüler' : 'Schüler'}</span>` : ''}</div><div class="lsblock"></div></div>`; }).join('')}<canvas class="lkletter" width="20" height="32"></canvas></div>`;
+        return `<div class="lstufeT" style="--i:${i}"><div class="lsinfo"><b>${esc(e.level)}</b><span class="lsname">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lsxp">${istGO(e.level) ? '' : 'ab '}${fmt(e.ab)} XP</span>${a ? `<span class="lsanz">${a} ${a === 1 ? 'Schüler' : 'Schüler'}</span>` : ''}</div><div class="lsblock"></div></div>`; }).join('')}<canvas class="lkletter" width="20" height="32"></canvas></div>`;
     }
     if (pg.id === 'level') {
       if (!D.levels.length) return '<p class="lleer">Die Leveltabelle wird beim nächsten Abruf aus dem XP-Rechner geladen.</p>';
       const anz = {}; D.klassen.forEach(k => k.liste.forEach(e => { const l = String(e.level || 0); anz[l] = (anz[l] || 0) + 1; }));
       const L = D.levels, half = Math.ceil(L.length / 2);
-      const zeile = (e, i) => { const key = e.level === '†' ? '0' : String(e.level); const a = anz[key] || 0; return `<li style="--st:${i}"><span class="lstep">${esc(e.level)}</span><span class="lstufe2">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lab"><span class="lweg">ab </span>${fmt(e.ab)} XP</span><span class="lanz${a ? '' : ' null'}">${a ? a + '<span class="lweg"> Schüler</span>' : '–'}</span></li>`; };
+      const zeile = (e, i) => { const key = e.level === '†' ? '0' : String(e.level); const a = anz[key] || 0; return `<li style="--st:${i}"><span class="lstep">${esc(e.level)}</span><span class="lstufe2">${esc(e.stufe) || '<em>noch ohne Namen</em>'}</span><span class="lab">${istGO(e.level) ? '' : '<span class="lweg">ab </span>'}${fmt(e.ab)} XP</span><span class="lanz${a ? '' : ' null'}">${a ? a + '<span class="lweg"> Schüler</span>' : '–'}</span></li>`; };
       return `<div class="lspalten" style="--rows:${half}">${[L.slice(0, half), L.slice(half)].map((c, j) => `<ol class="lliste llevel">${c.map((e, i) => zeile(e, i + j * half)).join('')}</ol>`).join('')}</div>`;
     }
     if (pg.id === 'badges') {
@@ -161,7 +164,7 @@ const LEITSTAND = (() => {
       const y = oben ? b0.top : (q > .7 ? b0.top + (b1.top - b0.top) * (q - .7) / .3 : b0.top) - hop * sc;
       cv.style.left = (x - tb.left - 10 * sc) + 'px'; cv.style.top = (y - tb.top - 31 * sc) + 'px';
       g.clearRect(0, 0, 20, 32);
-      const fr = oben ? (W.wave || W.idle)[Math.floor(t * 3) % 2] : W.walk[Math.floor(t * 8) % 8];
+      const fr = oben ? (W.wave || W.idle)[Math.floor(t * 3) % 2] : W.walk[Math.floor(t * 8) % W.walk.length];
       WORKERS.put(g, fr, 10, 30, false);
       kletterRaf = requestAnimationFrame(step);
     };
@@ -203,8 +206,8 @@ const LEITSTAND = (() => {
   function confirmAus() {
     const b = root.querySelector('#lAus');
     if (Date.now() - ausBereit < 3000) return true;
-    ausBereit = Date.now(); b.classList.add('warn'); b.textContent = 'Abmelden?';
-    setTimeout(() => { b.classList.remove('warn'); b.innerHTML = ICO.aus; }, 3000);
+    ausBereit = Date.now(); b.classList.add('warn'); b.setAttribute('aria-label', 'Nochmal tippen zum Abmelden');   /* v143: Knopf bleibt gleich groß, der Hinweis hängt als Schild darunter */
+    setTimeout(() => { b.classList.remove('warn'); b.setAttribute('aria-label', 'Abmelden'); }, 3000);
     return false;
   }
   return { start };

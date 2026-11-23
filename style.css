@@ -525,3 +525,25 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .stufe .sl b { color: var(--text); font-weight: 600; }
 .stufe .strack { display: block; height: 5px; background: var(--surface2); border: 1px solid var(--line); border-radius: 1px; overflow: hidden; }
 .stufe .strack i { display: block; height: 100%; background: var(--accent); }
+
+/* v143 Leitstand: Game over nur als Kreuz, ohne Balken */
+.llv.lgo { color: var(--l-amber); font-size: 1.5em; width: 2.4em; line-height: .6; }   /* Breite = 3,6em der Zeile */
+.lnext.lleerb { visibility: hidden; }
+/* v143 Überschrift: mehr Abstand zwischen den Wörtern, hellere Klapptafeln heben sich von der Ziegelwand ab */
+.lseite { gap: .8em; }
+.lfb { color: #fff6e0; background: linear-gradient(#4a4658 0 49%, #1c1a24 49% 51%, #3e3a4c 51%); border-color: #8c7a52; box-shadow: 0 3px 0 #000a, 0 0 0 1px #000c; }
+@media (max-width: 900px), (orientation: portrait) { .lseite { gap: .6em; } }
+/* v143 Abmelden bestätigen: Schild unter dem Knopf statt breiterem Knopf (lief rechts aus dem Kasten) */
+#lAus { position: relative; }
+#lAus.warn::after { content: 'Nochmal tippen zum Abmelden'; position: absolute; top: calc(100% + 8px); right: -4px; z-index: 30; white-space: nowrap; padding: .35em .7em; font-size: .8em; background: #4a2028; color: #ffd0b0; border: 2px solid #f08a6a; border-radius: 4px; box-shadow: 0 3px 0 #000a; pointer-events: none; }
+
+/* v144 Werkmeister: Sprechblase über seinem Kopf und sein Fenster */
+.wmblase { position: absolute; z-index: 6; max-width: min(170px, 46%); box-sizing: border-box; background: #fffaf0; color: #3a2f22; border: 2px solid #3e2731; border-radius: 5px; padding: 3px 7px 4px; font-size: .68rem; line-height: 1.25; box-shadow: 2px 3px 0 rgba(0, 0, 0, .2); transform: translateY(calc(-100% - 10px)); opacity: 0; transition: opacity .3s; cursor: pointer; }
+.wmblase.show { opacity: 1; }
+.wmblase::after { content: ''; position: absolute; left: var(--tail, 20px); bottom: -5px; width: 7px; height: 7px; background: #fffaf0; border-right: 2px solid #3e2731; border-bottom: 2px solid #3e2731; transform: translateX(-50%) rotate(45deg); }
+.wmkopf { display: flex; gap: 12px; align-items: center; margin: 6px 0 10px; }
+#wmpor { width: 92px; height: 92px; flex: none; image-rendering: auto; background: #e9dcc0; border: 2px solid var(--line); border-radius: 4px; }
+.wmsag { margin: 0; }
+@media (prefers-reduced-motion: reduce) { .wmblase { transition: none; } }
+/* v144 Handy: Uhr im Leitstand-Kopf weglassen (das Handy zeigt sie selbst), damit beide Kästen nebeneinander passen */
+@media (max-width: 600px) { .lhead .luhr { display: none; } .lhead { padding: 0 4px; gap: 8px; } }

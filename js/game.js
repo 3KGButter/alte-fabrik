@@ -111,6 +111,7 @@
       warte.shift();
       if (res && res.ok && res.state) {
         if (warte.length) { Dsrv = res; continue; }   /* es folgen noch Aktionen: erst die letzte Antwort zählt */
+        if (!res.rules && D) res.rules = D.rules;   /* v150: kurze Antwort, Regeln bleiben */
         if (sicht(res) === sicht(D)) { Dsrv = res; D = res; skew = res.now - Date.now(); renderChrome(); }   /* stimmt überein: still übernehmen */
         else apply(res);
         continue;
@@ -143,7 +144,7 @@
         if (!res.ok) { toast(res.error, true); SFX.play('error'); return res; }
         opSeq++; apply(res, true);
         if (!quiet) SFX.play(ACT_SND[body.action] || '', { vol: .9 });   /* jede Aktion klingt passend */
-        warte.push(body); senden();
+        warte.push(Object.assign({ kurz: 1 }, body)); senden();   /* kurz: Antwort ohne Regeln (v150) */
         return res;
       }
     }
@@ -162,6 +163,7 @@
   /* Stand vom Server holen (Bauzeit, alle 5 Minuten): nie dazwischenfunken, solange eigene Aktionen unterwegs sind */
   async function holen() { if (unterwegs()) return null; const n = opSeq; const r = await api({ action: 'login' }); return (unterwegs() || n !== opSeq) ? null : r; }
   function apply(d, lokal) {
+    if (!d.rules && D) d.rules = D.rules;   /* v150: kurze Antworten des Servers ohne Regeln */
     if (!lokal) Dsrv = d;
     const before = D && JSON.stringify(D.areas), mBefore = D ? mechaStage() : null;
     D = d; skew = d.now - Date.now();
@@ -221,6 +223,7 @@
 
   // ---------- Hauptschleife ----------
   /* Tageszeit 0..1 (Feuerwerk und alles andere laufen zur echten Tageszeit) */
+  window.SPIELTAG = () => dayT();   /* v153: Leitraum nutzt dieselbe Spielzeit */
   function dayT() { if (window.FORCE_T !== undefined) return window.FORCE_T; const p = (window.DAY_MINUTES || 10) * 60000; return ((now() % p) / p + .35) % 1; }
   function frame(ts) {
     requestAnimationFrame(frame);
@@ -335,11 +338,13 @@
     lastSig = html; swapPanel(html);
     document.querySelectorAll('.abtn').forEach(b => b.classList.toggle('on', b.dataset.p === mode));
     // Katalog-Vorschaubilder
+    { const wp = document.getElementById('wmpor'); if (wp && typeof WERKMEISTER !== 'undefined') { const B = WERKMEISTER.BUST; wp.width = wp.height = 184;   /* v151: Brustbild von Michael (ChatGPT), 184 px, angezeigt mit 92 px */ const male = () => wp.getContext('2d').drawImage(B, 0, 0); if (B.complete && B.naturalWidth) male(); else B.addEventListener('load', male, { once: true });   /* v150: gezeichnetes Brustbild */ } }
     document.querySelectorAll('[data-prev]').forEach(el => { const s = SCENE.DS[el.dataset.prev] || INNER.DSI[el.dataset.prev]; if (s) { el.width = s.c.width; el.height = s.c.height; el.getContext('2d').drawImage(s.c, 0, 0); if (el.parentNode.classList.contains('catimg')) { const k = Math.max(1, Math.min(3, Math.floor(104 / s.c.height)));   /* Maßstab nur nach der Höhe (unabhängig vom Layout); ist die Karte schmal, wird ein breites Bild (Kran) per CSS eingepasst */   /* möglichst gleicher Maßstab (3), nur sehr große Dinge kleiner: Größen passen zueinander */ el.style.width = s.c.width * k + 'px'; el.style.height = s.c.height * k + 'px'; } } /* ganzzahlig skaliert: gleich große Pixel */ });
   }
   function panelHTML() {
     if (mode === 'quests') return questsHTML();
     if (mode === 'keys') return keysHTML();
+    if (mode === 'meister') return meisterHTML();
     if (mode === 'factory') return factoryHTML();
     if (mode === 'orders') return ordersHTML();
     if (mode === 'rank') return rankHTML();
@@ -446,6 +451,47 @@
     return h;
   }
   function upInfo(s, l) { const d = sDef(s); if (d.out) return fmt1(d.rate[l - 1]) + ' ' + R().parts[d.out].name + ' pro Stunde'; if (s === 'notstrom') return d.slots[l - 1] + ' Maschinen gleichzeitig'; return fmt(R().storeCaps[l]) + ' Teile im Lager'; }
+  // ---------- Werkmeister (v144): Fenster mit Brustbild, nächsten Quests und einem Merksatz ----------
+  const wmTips = () => WERKMEISTER.bekannt(D.quests);
+  function meisterHTML() {
+    const frei = freieQuests(), fl = D.quests.filter(q => frei[q.n]).sort((a, b) => (b.hq ? 1 : 0) - (a.hq ? 1 : 0)), u = unclaimed().length, hh = new Date().getHours();
+    const gruss = hh < 11 ? 'Servus, guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!';
+    const satz = u ? `Am Lieferwagen ${u > 1 ? 'warten' : 'wartet'} noch ${u} Kiste${u > 1 ? 'n' : ''} auf dich. Hol sie dir, bevor du weitermachst.`
+      : !fl.length ? (D.quests.every(q => q.done) ? 'Alles erledigt. Respekt, so kenn ich dich!' : 'Gerade ist nichts Neues frei. Schau bald wieder rein.')
+      : fl.length === 1 ? 'Eine Sache kannst du jetzt anpacken.' : `${fl.length} Sachen kannst du jetzt anpacken.`;   /* v150: keine Reihenfolge vorgeben, HQ oder NQ wählen die Schüler selbst */
+    let h = `<h2>Der Werkmeister</h2><div class="wmkopf"><canvas id="wmpor" width="1" height="1" aria-hidden="true"></canvas><p class="wmsag"><b>${gruss}</b> ${esc(satz)}</p></div>`;
+    if (fl.length) { h += `<h3>Als Nächstes</h3>`; fl.forEach(q => { const url = /^https:\/\/[^\s"'<>]+$/i.test(q.url || '') ? q.url : '';
+      h += `<div class="row qfrei"><div class="grow"><div class="t">${esc(q.n)}</div><div class="s"><span class="tag ${q.hq ? 'hq' : 'nq'}">${q.hq ? 'HQ' : 'NQ'}</span>${esc(q.ms)} · ${q.xp} XP</div></div>${url ? `<a class="btn qlink" href="${esc(url)}" target="_blank" rel="noopener" title="Zur Aufgabe in Mebis" aria-label="Zur Aufgabe in Mebis: ${esc(short(q.n))}">${ICO_GO}</a>` : ''}</div>`; }); }
+    return h;   /* v150: Merksätze nur noch in der Sprechblase */
+  }
+  // Sprechblase: einige Sekunden nach dem Betreten des Pförtnerhauses, dann etwa alle 80 s, höchstens 4-mal pro Anmeldung
+  // v150: beim ersten Betreten nach der Anmeldung zuerst eine kurze Begrüßung, damit klar ist, dass man ihn antippen kann
+  const WMB = { n: 0, next: 0, bis: 0, zuletzt: -1, gruss: false };
+  function wmBlaseWeg() { const el = $('wmblase'); if (el.hidden) return; el.classList.remove('show'); setTimeout(() => { if (!el.classList.contains('show')) el.hidden = true; }, 350); }
+  function wmPos() { const el = $('wmblase'), h = INNER.HIT.meister; if (!h) return wmBlaseWeg();
+    const r = cvs.getBoundingClientRect(), sr = $('stage').getBoundingClientRect(), k = r.width / W, cx = r.left - sr.left + (h.x + h.w / 2) * k, top = r.top - sr.top + (h.y + 2) * k;
+    const bw = el.offsetWidth, left = Math.max(6, Math.min(sr.width - bw - 6, cx - 28));
+    el.style.left = left + 'px'; el.style.top = top + 'px'; el.style.setProperty('--tail', Math.max(14, Math.min(bw - 14, cx - left)) + 'px'); }
+  function wmTick() {
+    const el = $('wmblase');
+    if (!D || view !== 'pfoertner' || !built('pfoertner') || cut || placeItem || mode === 'meister' || document.hidden) { wmBlaseWeg(); WMB.next = 0; return; }
+    const t = Date.now(); if (!WMB.next) WMB.next = t + (window.WM_SOFORT ? 300 : WMB.gruss ? 5000 : 1200);
+    if (!el.hidden) { if (t > WMB.bis) wmBlaseWeg(); else wmPos(); return; }
+    if (!WMB.gruss && t >= WMB.next) { const hh = new Date().getHours();
+      WMB.gruss = true; WMB.next = t + (window.WM_SOFORT ? 2500 : 30000); WMB.bis = t + (window.WM_SOFORT ? 1800 : 6500);
+      el.textContent = (hh < 11 ? 'Servus, guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!') + ' Ich bin der Werkmeister. Tipp mich an, dann sag ich dir, was du jetzt anpacken kannst.';
+      el.hidden = false; wmPos(); requestAnimationFrame(() => el.classList.add('show')); SFX.play('meister'); window.WM_WINK = t + 2600; return; }   /* v152: winkt zum Gruß */
+    if (t < WMB.next || WMB.n >= 4) return;
+    const tips = wmTips(); if (!tips.length) return;
+    let i = Math.floor(Math.random() * tips.length); if (tips.length > 1 && i === WMB.zuletzt) i = (i + 1) % tips.length;
+    WMB.zuletzt = i; WMB.n++; WMB.next = t + 80000; WMB.bis = t + 7500;
+    el.textContent = tips[i]; el.hidden = false; wmPos(); requestAnimationFrame(() => el.classList.add('show')); SFX.play('meister');
+  }
+  setInterval(wmTick, 500);
+  function wmOeffnen() { mode = 'meister'; sel = null; renderPanel(true); }
+  $('wmblase').addEventListener('click', () => { wmBlaseWeg(); if (view === 'pfoertner') { SFX.play('meister'); wmOeffnen(); } });
+  addEventListener('resize', () => { if (!$('wmblase').hidden) wmPos(); });
+
   function keysHTML() {   /* Schlüsselbrett: welche Bereiche offen sind, was für den nächsten fehlt */
     const A = R().areas; let h = '<h2>Schlüsselbrett</h2><p>Für jeden offenen Bereich hängt ein Schlüssel am Brett.</p>', nextDone = false;
     A.forEach((a, i) => {
@@ -563,7 +609,7 @@
     let h = `<h2>Menü</h2><p><b>${esc(u.tag)}</b> · ${esc(u.klasse || '')} · ${fmt(u.xp)} XP · Level ${u.level}${(S().stamps || 0) >= R().orders.stampsForTitle ? ' · ' + esc(R().orders.title) : ''}</p>
       <div class="btns"><button class="btn" data-act="tutorial">So funktioniert's</button><button class="btn" data-act="refresh">Neu laden</button><button class="btn" data-act="theme">Hell / Dunkel</button><button class="btn" data-act="logout">Abmelden</button></div>`;
     if (MOCK) h += `<h3>Vorschau-Werkzeuge</h3><div class="btns"><button class="btn" data-act="mock" data-id="mockSkip">12 Stunden vorspulen</button><button class="btn" data-act="mock" data-id="mockBau">Bauarbeiten beenden</button><button class="btn" data-act="mock" data-id="mockRich">+500 Zahnräder</button><button class="btn" data-act="mock" data-id="mockParts">+300 Teile</button><button class="btn" data-act="mock" data-id="mockStamps">+10 Stempel</button><button class="btn" data-act="mock" data-id="mockReset">Zurücksetzen</button></div>
-      <p class="small">Wetter:</p><div class="btns">${[['', 'nach Plan'], ['klar', 'klar'], ['regen', 'Regen'], ['gewitter', 'Gewitter']].map(([w, n]) => `<button class="btn x ${(window.FORCE_WX || '') === w ? 'main' : ''}" data-act="wetter" data-id="${w}">${n}</button>`).join('')}</div>
+      <p class="small">Wetter:</p><div class="btns">${[['', 'nach Plan'], ['klar', 'klar'], ['regen', 'Regen'], ['gewitter', 'Gewitter'], ['nebel', 'Nebel']].map(([w, n]) => `<button class="btn x ${(window.FORCE_WX || '') === w ? 'main' : ''}" data-act="wetter" data-id="${w}">${n}</button>`).join('')}</div>
       <p class="small">Fortschritt in Mebis:</p><div class="btns">${['frueh', 'mitte', 'weit', 'alles'].map(s => `<button class="btn x" data-act="stand" data-id="${s}">${s}</button>`).join('')}</div>`;
     h += `<p class="small">Die Alte Fabrik · Fortschritt aus deinem Mebis-Kurs. Die Fabrik zählt nicht für XP oder Noten.</p>`;
     h += `<details class="lizenz"><summary>Lizenzen &amp; Quellen</summary><div class="small">
@@ -687,6 +733,7 @@
     if (k === 'golem') return select({ kind: 'golem', hit: 'golem' });
     if (k === 'brett' || h.brett) { SFX.play('glint'); mode = 'badges'; sel = null; return renderPanel(true); }
     if (k === 'tor') return openTutorial();
+    if (h.meister) { SFX.play('meister'); wmBlaseWeg(); wmOeffnen(); return; }
     if (h.quests) { mode = 'quests'; sel = null; return renderPanel(true); }
     if (h.keys) { store.set(keysKey(), String(keysOpen())); mode = 'keys'; sel = null; return renderPanel(true); }
     if (k === 'rang') { mode = 'rank'; sel = null; loadRank(); return renderPanel(true); }
@@ -695,6 +742,7 @@
     if (h.ymecha) { mechaTap(); return; }
     if (h.info) return select({ kind: 'turbine', hit: k });
     if (h.gim) return gimmick(h.gim);
+    if (h.fixed === 'katze') window.KATZE_TIPP = Date.now();   /* v157: Katze reagiert (Schnurren, Strecken oder Ball) */
     if (h.fixed) return select({ kind: 'fixed', id: h.fixed, hit: k });
     if (h.slot !== undefined) { if (h.item === 'vogelhaus' && view === 'hof') { SCENE.gim('vogel', { x: h.x + h.w / 2, y: h.y }); SFX.play('chirp', { vol: .9 }); } if (h.item) return select({ kind: 'placed', slot: h.slot, lvl: h.lvl || 0, m, item: h.item, hit: k }); sel = null; return renderPanel(true); }
     if (view === 'hof') {
@@ -835,3 +883,6 @@
 // Spielsymbol in Lade- und Anmeldefenster, dazu als Tab-Symbol
 (() => { const E = ART.EMBLEM; if (!E) return; document.querySelectorAll("[data-emblem]").forEach(c => { c.width = E.c.width; c.height = E.c.height; c.getContext("2d").drawImage(E.c, 0, 0); });
   try { const f = document.createElement("canvas"); f.width = f.height = 64; const g = f.getContext("2d"); g.imageSmoothingEnabled = false; g.drawImage(E.c, 0, 0, 64, 64); const l = document.createElement("link"); l.rel = "icon"; l.href = f.toDataURL(); document.head.appendChild(l); } catch (e) {} })();
+// v150: Spiel auf dem Gerät ablegen (sw.js), damit weitere Starts sofort da sind; nicht in der Vorschau (dort ist alles eingebettet)
+(() => { try { if ('serviceWorker' in navigator && document.querySelector('script[src^="js/game.js"]') && (location.protocol === 'https:' || location.hostname === 'localhost'))
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); } catch (e) {} })();

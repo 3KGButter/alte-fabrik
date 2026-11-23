@@ -107,6 +107,8 @@ const SFX = (() => {
     lantern: (d, t) => { tink(d, t, .02, 1568); tink(d, t + .09, .015, 1760); },   /* Laterne klirrt leise */
     mstep: (d, t) => { tone(d, t, 58, .5, .24, { to: 38, lp: 220, a: .008 }); tone(d, t, 104, .2, .06, { type: 'triangle', to: 74, lp: 380 }); hiss(d, t, .18, .045, { f: 240 }); knock(d, t + .03, .035, 170); },   /* Mecha-Schritt: tiefer, weicher Stampfer mit leisem Metallklang */
     mthud: (d, t) => { tone(d, t, 48, .8, .26, { to: 30, lp: 190, a: .01 }); hiss(d, t, .4, .07, { f: 300, to: 110 }); knock(d, t + .05, .045, 140); tone(d, t + .08, 82, .4, .05, { type: 'triangle', to: 60, lp: 300 }); },   /* Landung: schweres, dumpfes Aufsetzen */
+    zisch: (d, t) => { hiss(d, t, .2, .045, { type: 'bandpass', f: 4200, to: 2600, q: .6, a: .008 }); hiss(d, t + .03, .16, .02, { type: 'highpass', f: 6000, a: .01 }); },   /* v155: kurzes Dampfzischen am Mecha-Arm */
+    einfahren: (d, t) => { tone(d, t, 96, .32, .05, { type: 'sawtooth', to: 64, lp: 300, a: .03 }); for (let i = 0; i < 3; i++) knock(d, t + .05 + i * .08, .012, 170); hiss(d, t + .26, .18, .035, { type: 'bandpass', f: 3600, to: 2200, q: .6, a: .01 }); },   /* v155: Arm fährt zum Winken aus/ein */
     mservo: (d, t) => { tone(d, t, 72, .5, .06, { type: 'sawtooth', to: 104, lp: 320, a: .05 }); hiss(d, t, .45, .02, { type: 'bandpass', f: 420, q: 3 }); for (let i = 0; i < 4; i++) knock(d, t + .06 + i * .1, .012, 150); },   /* Gelenkmotor: tiefes, rauhes Surren mit Zahnradticken */
     mbeep: (d, t) => { tone(d, t, 330, .08, .045, { type: 'square', lp: 900 }); tone(d, t + .12, 247, .11, .045, { type: 'square', lp: 800 }); },   /* tiefer Roboter-Pieper (zwei Töne) */
     mscan: (d, t) => { tone(d, t, 196, .14, .035, { type: 'square', lp: 700 }); tone(d, t + .18, 196, .14, .03, { type: 'square', lp: 700 }); tone(d, t + .36, 262, .2, .035, { type: 'square', lp: 800 }); },   /* Suchscheinwerfer: Abtast-Signal */
@@ -124,6 +126,7 @@ const SFX = (() => {
     squeak: (d, t) => { for (let i = 0; i < 3; i++) tone(d, t + i * .28, 1400 + i * 60, .16, .012, { type: 'sine', to: 1650 + i * 40, lp: 2600, a: .03 }); },   /* Bürostuhl quietscht leise beim Drehen */
     kuckuck: (d, t) => { for (let i = 0; i < 2; i++) { tone(d, t + i * .55, 784, .2, .045, { type: 'triangle', lp: 1800, a: .02 }); tone(d, t + i * .55 + .22, 659, .28, .045, { type: 'triangle', lp: 1800, a: .02 }); } },   /* „Kuck-kuck“ zweimal */
     lampclick: (d, t) => { knock(d, t, .03, 1200); },
+    meister: (d, t) => { [[150, .17], [126, .26]].forEach(([f, du], i) => { tone(d, t + i * .2, f, du, .045, { type: 'sawtooth', lp: 650, a: .035, to: f * .9 }); tone(d, t + i * .2, f * 2, du, .01, { type: 'triangle', lp: 900, a: .035 }); }); },   /* Werkmeister brummelt freundlich „hm-hm“ */
     rustle: (d, t) => { if (sample(d, t, 'blaetter_rascheln', { vol: .5, vary: .1 })) return;   /* Aufnahme (Kenney, Gras), sonst erzeugt */ for (let i = 0; i < 14; i++) { const tt = t + i * .045 + Math.random() * .03, v = .006 + Math.sin(i / 13 * Math.PI) * .012; hiss(d, tt, .05 + Math.random() * .04, v, { type: 'bandpass', f: 2200 + Math.random() * 3000, q: .8 }); } },   /* Blätter rascheln: viele weiche, unregelmäßige Rauschtupfer, an- und abschwellend */
     clink: (d, t) => { tink(d, t, .025, 1760); tink(d, t + .09, .02, 1320); tink(d, t + .2, .015, 1568); },   /* Werkzeug klirrt */
     glint: (d, t) => { tone(d, t, 1568, .4, .015, { type: 'sine', lp: 4000 }); tone(d, t + .08, 2093, .5, .012, { type: 'sine', lp: 4000 }); },   /* Glanz läuft über die Abzeichen */
@@ -147,6 +150,7 @@ const SFX = (() => {
     whistle: (d, t) => tone(d, t, 700, .9, .015, { to: 1600, a: .1 }),
     boom: (d, t) => { tone(d, t, 120, .45, .12, { to: 60, lp: 500, a: .005 }); hiss(d, t, .5, .07, { f: 700, to: 200 }); for (let i = 0; i < 6; i++) tone(d, t + R(.2, .8), N[5 + Math.floor(Math.random() * 5)], .25, .012); },   // weiches Puff mit Glitzern
     beep: (d, t) => tone(d, t, N[4], .12, .03, { type: 'triangle', lp: 2000 }),
+    schnurr: (d, t) => { for (let i = 0; i < 56; i++) { const a = Math.sin(i / 56 * Math.PI); tone(d, t + i * .045, i % 2 ? 58 : 64, .05, .045 * a, { type: 'triangle', lp: 260, a: .01 }); } },   /* v157: Katze schnurrt */
     meow: (d, t) => { tone(d, t, 620, .14, .03, { to: 900, type: 'triangle', lp: 1800 }); tone(d, t + .14, 900, .22, .025, { to: 560, type: 'triangle', lp: 1600 }); },
     creak: (d, t) => tone(d, t, 140, .5, .03, { type: 'triangle', to: 110, lp: 500, a: .1 }),
     crash: (d, t) => { hiss(d, t, .6, .12, { f: 700, to: 200 }); tone(d, t, 90, .4, .2, { to: 45, lp: 300 }); for (let i = 0; i < 4; i++) knock(d, t + R(0, .3), .06, R(250, 450)); },

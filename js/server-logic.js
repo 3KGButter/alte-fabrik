@@ -154,17 +154,18 @@ function doPost(e) {
     if (action === 'login') {
       const ctx0 = kontext_(who.user), st0 = demoAusbau_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx0), Date.now()));
       if (allesAusgebaut_(st0) && st0.gears) {   // alles ausgebaut: übrige Zahnräder verfallen (auch für alte Spielstände)
-        const lk = LockService.getScriptLock(); if (lk.tryLock(10000)) { try { st0.gears = 0; speichereStand_(who.user.tag, st0); } finally { lk.releaseLock(); } }
+        const frei = sperre_(who.user.tag, 10000); if (frei) { try { st0.gears = 0; speichereStand_(who.user.tag, st0); } finally { frei(); } }
       }
       return json_(antwort_(who.user, st0, ctx0));
     }
     if (action === 'rangliste') return json_(rangliste_(who.user, snapshot_(), req.klasse));   // nur lesen
 
-    // Schreibende Aktionen: nacheinander abarbeiten. Alles, was nur liest (XP-Rechner, Zugänge), passiert vorher,
-    // damit die Sperre nur für Laden, Rechnen und Speichern des eigenen Spielstands gehalten wird.
+    // Schreibende Aktionen: Alles, was nur liest (XP-Rechner, Zugänge), passiert vorher.
+    // v150: Sperre nur noch je Spieler (jeder hat seine eigene Zeile), Schüler warten nicht mehr aufeinander.
+    // Nur das Anlegen einer neuen Zeile läuft für alle nacheinander (speichereStand_).
     const ctx = kontext_(who.user);
-    const lock = LockService.getScriptLock();
-    if (!lock.tryLock(25000)) return json_({ ok: false, error: 'Gerade ist viel los. Bitte tippe gleich noch einmal.' });
+    const frei = sperre_(who.user.tag, 25000);
+    if (!frei) return json_({ ok: false, error: 'Dein Spielstand wird gerade noch gespeichert. Bitte tippe gleich noch einmal.' });   // nur noch, wenn derselbe Spieler auf zwei Geräten gleichzeitig spielt
     let out;
     try {
       const state = demoAusbau_(who.user, bauFertig_(migriere_(ladeStand_(who.user.tag), ctx), Date.now()));
@@ -178,13 +179,24 @@ function doPost(e) {
         if (res.got) out.got = res.got;
       }
     } finally {
-      lock.releaseLock();
+      frei();
     }
+    if (req.kurz) delete out.rules;   // v150: Regeln kennt das Spiel seit der Anmeldung, die Antwort wird halb so groß
     return json_(out);
   } catch (err) {
     console.error(err);
     return json_({ ok: false, error: 'Serverfehler: ' + err.message });
   }
+}
+
+// v150: Sperre für einen Spieler (zwei Geräte gleichzeitig): Merker im Zwischenspeicher, gibt eine Freigabe-Funktion zurück oder null
+function sperre_(tag, ms) {
+  const c = CacheService.getScriptCache(), k = 'lk_' + normTag_(tag), id = Utilities.getUuid(), t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (!c.get(k)) { c.put(k, id, 30); Utilities.sleep(40); if (c.get(k) === id) return () => { try { if (c.get(k) === id) c.remove(k); } catch (e) {} }; }
+    Utilities.sleep(150 + Math.floor(Math.random() * 150));
+  }
+  return null;
 }
 
 function json_(obj) {
@@ -531,9 +543,17 @@ function ladeStand_(tag) {
 
 function speichereStand_(tag, state) {
   const sh = standBlatt_();
-  let row = MEMO_['row_' + tag];   // aus ladeStand_ derselben Anfrage (unter derselben Sperre)
+  let row = MEMO_['row_' + tag];   // aus ladeStand_ derselben Anfrage (unter der Sperre des Spielers)
   if (row === undefined) { const z = standZeile_(sh, tag); row = z ? z.row : 0; }
-  if (!row) { row = sh.getLastRow() + 1; CacheService.getScriptCache().put('row_' + tag, String(row), 21600); }
+  if (!row) {   // neue Zeile: für alle nacheinander, damit zwei neue Spieler nicht dieselbe Zeile bekommen
+    const lock = LockService.getScriptLock(); lock.waitLock(25000);
+    try {
+      const z = standZeile_(sh, tag); row = z ? z.row : sh.getLastRow() + 1;
+      sh.getRange(row, 1, 1, 3).setValues([[tag, JSON.stringify(state), new Date()]]);
+      CacheService.getScriptCache().put('row_' + tag, String(row), 21600); MEMO_['row_' + tag] = row;
+    } finally { lock.releaseLock(); }
+    return;
+  }
   sh.getRange(row, 1, 1, 3).setValues([[tag, JSON.stringify(state), new Date()]]);
 }
 
