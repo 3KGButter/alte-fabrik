@@ -128,8 +128,8 @@ const ART = (() => {
     g.globalAlpha = f; g.drawImage(NBC, 0, 0); g.globalAlpha = 1;
     if (!(lamp > .02) || !L) return;
     g.save(); g.globalCompositeOperation = 'lighter';
-    for (const l of L) { if (l.hinten) continue; const cx = l.x + l.w / 2, cy = l.y + l.h / 2, big = !!l.pool, r = big ? 34 : l.fire ? 13 : 6, a = (big ? .5 : l.fire ? .22 : .05) * f * lamp * (l.a === undefined ? 1 : l.a);
-      if (a < .01) continue; const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r); rg.addColorStop(0, `rgba(255,196,110,${a})`); rg.addColorStop(.4, `rgba(255,196,110,${a * .45})`); rg.addColorStop(1, 'rgba(255,196,110,0)');
+    for (const l of L) { if (l.hinten) continue; const cx = l.x + l.w / 2, cy = l.y + l.h / 2, lat = !!l.laterne, big = !!l.pool && !lat, r = big ? 34 : lat ? 15 : l.fire ? 13 : 6, a = (big ? .5 : lat ? .3 : l.fire ? .22 : .05) * f * lamp * (l.a === undefined ? 1 : l.a);   /* v159: Handlaternen im Nebel nur runder Schein, kein Straßenlaternen-Kegel */
+      if (a < .01 || !isFinite(cx + cy + r)) continue; const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r); rg.addColorStop(0, `rgba(255,196,110,${a})`); rg.addColorStop(.4, `rgba(255,196,110,${a * .45})`); rg.addColorStop(1, 'rgba(255,196,110,0)');
       g.fillStyle = rg; g.fillRect(cx - r, cy - r, r * 2, r * 2);
       if (big) for (const [hw, q] of [[10, .45], [17, .32], [25, .23]]) {   /* weicher Kegel: drei übereinanderliegende Dreiecke, außen schwächer */
         const cg = g.createLinearGradient(0, cy, 0, cy + 40); cg.addColorStop(0, `rgba(255,200,120,${q * .32 * f * lamp})`); cg.addColorStop(1, 'rgba(255,200,120,0)'); g.fillStyle = cg;
@@ -692,7 +692,7 @@ const ART = (() => {
     sc.drawImage(GLC, 0, 0); }
   function glow(g, l, a) {   // weicher, runder Lichtschein (radialer Verlauf), Kern bleibt scharf
     const c = l.c || '#ffd56a', [r0, g0, b0] = hx(c), cx = l.x + l.w / 2, cy = l.y + l.h / 2, rx = l.w / 2 + 4 + Math.min(4, l.w * .3), ry = l.h / 2 + 4 + Math.min(4, l.h * .3);
-    g.save(); g.translate(cx, cy); g.scale(1, ry / rx); const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+    if (!isFinite(cx + cy + rx + ry) || rx <= 0) return; g.save(); g.translate(cx, cy); g.scale(1, ry / rx); const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx);
     gr.addColorStop(0, `rgba(${r0},${g0},${b0},${.34 * a})`); gr.addColorStop(.45, `rgba(${r0},${g0},${b0},${.14 * a})`); gr.addColorStop(1, `rgba(${r0},${g0},${b0},0)`);
     g.fillStyle = gr; g.fillRect(-rx, -rx, rx * 2, rx * 2); g.restore();
     g.globalAlpha = a;

@@ -89,6 +89,8 @@ const LEITSTAND = (() => {
     return '';
   }
 
+  /* v159: Spielversion aus den Skriptadressen (?v=…), für die Lehrkraft oben rechts unter dem XP-Rechner-Stand */
+  const SPIELV = (() => { try { const sc = [...document.scripts].map(x => /[?&]v=(\d+)/.exec(x.src)).find(Boolean); return sc ? sc[1] : ''; } catch (e) { return ''; } })();
   // ---------- Anzeige ----------
   function aufbauen() {
     root = document.createElement('div'); root.id = 'leit'; root.className = 'leit';
@@ -119,7 +121,7 @@ const LEITSTAND = (() => {
   function knopfPause() { const b = root.querySelector('#lPause'); b.innerHTML = pausiert ? ICO.play : ICO.pause; b.setAttribute('aria-label', pausiert ? 'Automatisch weiterblättern starten' : 'Automatisch weiterblättern anhalten'); b.classList.toggle('an', pausiert); }
   function uhr() {
     const d = new Date(); root.querySelector('#lUhr').textContent = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    if (D && D.stand) { const s = new Date(D.stand); if (!isNaN(s)) root.querySelector('#lStand').textContent = 'XP-Rechner: ' + s.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ', ' + s.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+    if (D && D.stand) { const s = new Date(D.stand); if (!isNaN(s)) root.querySelector('#lStand').textContent = 'XP-Rechner: ' + s.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ', ' + s.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) + (SPIELV ? '\nSpiel: Version ' + SPIELV : ''); }
   }
   function chips() {
     const box = root.querySelector('#lChips'); setTimeout(() => { const on = box.querySelector('.lchip.on'); if (on && box.scrollWidth > box.clientWidth) box.scrollLeft = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2; }, 0);   /* schmale Bildschirme: der aktive Reiter rückt in die Mitte der Leiste */

@@ -68,7 +68,7 @@
   const collectable = id => stOf(id) ? kannAbholen_(id, S(), now()) : 0;
 
   // Geräusche zu Aktionen (neue Aktionen hier eintragen)
-  const ACT_SND = { buy: 'coin', sell: 'coin', build: 'build', repair: 'build', upgrade: 'build', mecha: 'build', place: 'place', unplace: 'unplace', zeigen: 'place', claim: 'reward', collect: 'crate', order: 'crate', deliver: 'stamp', power: 'lamp', mechaPaint: 'hiss', mechaName: 'ding', spind: 'reward', discard: 'unplace', avatar: 'click' };
+  const ACT_SND = { buy: 'coin', sell: 'coin', build: 'build', repair: 'build', upgrade: 'build', mecha: 'build', place: 'place', unplace: 'unplace', zeigen: 'place', claim: 'reward', collect: 'abholen', order: 'crate', deliver: 'stamp', power: 'lamp', mechaPaint: 'hiss', mechaName: 'ding', spind: 'reward', discard: 'unplace', avatar: 'click' };
   const sndIcon = () => { const b = $('sndBtn'); if (!b) return; b.innerHTML = '<svg viewBox="0 0 16 16" width="18" height="18" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="1" y="6" width="3" height="4"/><rect x="4" y="5" width="2" height="6"/><rect x="6" y="3" width="2" height="10"/>' + (SFX.on ? '<rect x="10" y="6" width="1" height="4"/><rect x="12" y="4" width="1" height="8"/><rect x="11" y="5" width="1" height="1"/><rect x="11" y="10" width="1" height="1"/>' : '<rect x="10" y="5" width="1" height="1"/><rect x="11" y="6" width="1" height="1"/><rect x="12" y="7" width="1" height="2"/><rect x="13" y="6" width="1" height="1"/><rect x="14" y="5" width="1" height="1"/><rect x="11" y="9" width="1" height="1"/><rect x="13" y="9" width="1" height="1"/><rect x="10" y="10" width="1" height="1"/><rect x="14" y="10" width="1" height="1"/>') + '</svg>'; b.classList.toggle('off', !SFX.on); b.setAttribute('aria-pressed', SFX.on ? 'true' : 'false'); };
   $('sndBtn').addEventListener('click', () => { SFX.setOn(!SFX.on); sndIcon(); if (SFX.on) SFX.play('click'); toast(SFX.on ? 'Geräusche an' : 'Geräusche aus'); });
   sndIcon();
@@ -479,7 +479,9 @@
     if (!el.hidden) { if (t > WMB.bis) wmBlaseWeg(); else wmPos(); return; }
     if (!WMB.gruss && t >= WMB.next) { const hh = new Date().getHours();
       WMB.gruss = true; WMB.next = t + (window.WM_SOFORT ? 2500 : 30000); WMB.bis = t + (window.WM_SOFORT ? 1800 : 6500);
-      el.textContent = (hh < 11 ? 'Servus, guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!') + ' Ich bin der Werkmeister. Tipp mich an, dann sag ich dir, was du jetzt anpacken kannst.';
+      /* v159: die Vorstellung kommt nur beim allerersten Besuch, danach ein kurzer Gruß mit einem Tipp */
+      const gr = hh < 11 ? 'Servus, guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!'; let kennt = false; try { kennt = !!localStorage.getItem('af_wm_kennt'); localStorage.setItem('af_wm_kennt', '1'); } catch (e) {}
+      const tp = kennt ? wmTips() : []; el.textContent = !kennt ? gr + ' Ich bin der Werkmeister. Tipp mich an, dann sag ich dir, was du jetzt anpacken kannst.' : tp.length ? gr + ' ' + tp[Math.floor(Math.random() * tp.length)] : gr + ' Schön, dass du da bist.';
       el.hidden = false; wmPos(); requestAnimationFrame(() => el.classList.add('show')); SFX.play('meister'); window.WM_WINK = t + 2600; return; }   /* v152: winkt zum Gruß */
     if (t < WMB.next || WMB.n >= 4) return;
     const tips = wmTips(); if (!tips.length) return;

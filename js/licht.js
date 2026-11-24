@@ -208,7 +208,7 @@ const LICHT = (() => {
     if (ex && ex.g && ex.g.length) {   /* Schein der bewegten bzw. verdeckten Lampen in jedem Bild */
       if (!s.gl || s.gl.width !== W || s.gl.height !== H) { s.gl = mk(W, H); s.glg = s.gl.getContext('2d'); }
       const q = s.glg, st = .4 + .35 * ex.lam / 1.35; q.globalCompositeOperation = 'source-over'; q.clearRect(0, 0, W, H);
-      for (const pass of [true, false]) { for (const l of ex.g) { if (!!l.hinten !== pass) continue; const cx = l.x + l.w / 2, cy = l.y + l.h / 2, c = rgbOf(l.c || '#ffd56a', 255).map(v => v | 0), gr = q.createRadialGradient(cx, cy, 0, cx, cy, 7);
+      for (const pass of [true, false]) { for (const l of ex.g) { if (!!l.hinten !== pass || !isFinite(l.x + l.y + l.w + l.h)) continue; const cx = l.x + l.w / 2, cy = l.y + l.h / 2,   /* v159: ungültige Lampen überspringen */ c = rgbOf(l.c || '#ffd56a', 255).map(v => v | 0), gr = q.createRadialGradient(cx, cy, 0, cx, cy, 7);
           gr.addColorStop(0, `rgba(${c},${Math.min(1, st)})`); gr.addColorStop(.5, `rgba(${c},${st * .25})`); gr.addColorStop(1, `rgba(${c},0)`); q.fillStyle = gr; q.fillRect(cx - 7, cy - 7, 14, 14); }
         if (pass && opt.fronts) { q.globalCompositeOperation = 'destination-out'; for (const fr of opt.fronts) q.drawImage(fr.c, fr.x, fr.y); q.globalCompositeOperation = 'source-over'; } }
       g.globalCompositeOperation = 'screen'; g.drawImage(s.gl, 0, 0); }
@@ -238,7 +238,7 @@ const LICHT = (() => {
   // ---------- Lampen, die sich bewegen oder hinter einem vorderen Gebäude stehen (v155) ----------
   // Sie werden in jedem Bild weich auf die Lichtkarte gelegt (Maximum wie in pxl), damit das Licht flüssig mitwandert;
   // Lampen hinter einem Gebäude beleuchten dessen Vorderseite nicht (Gebäude werden aus ihrem Licht ausgestanzt).
-  function lampeMalen(g, x, y, o) { const p = o.power, R = p * o.r; if (!(R > .5)) return; const c = rgbOf(o.color), gr = g.createRadialGradient(x + .5, y + .5, 0, x + .5, y + .5, R);
+  function lampeMalen(g, x, y, o) { const p = o.power, R = p * o.r; if (!(R > .5) || !isFinite(x + y + R)) return; const c = rgbOf(o.color), gr = g.createRadialGradient(x + .5, y + .5, 0, x + .5, y + .5, R);
     for (let k = 0; k <= 8; k++) { const f = p * (1 - k / 8), v = k === 8 ? 0 : f >= 1 ? f : 1 - (1 - f) * (1 - f); gr.addColorStop(k / 8, `rgb(${Math.min(255, v * c[0] * 127.5) | 0},${Math.min(255, v * c[1] * 127.5) | 0},${Math.min(255, v * c[2] * 127.5) | 0})`); }
     g.fillStyle = gr; g.fillRect(x - R, y - R, R * 2 + 1, R * 2 + 1); }
   function extraLampen(L, za, zb, f) { const lam = za.lampen + (zb.lampen - za.lampen) * f, keg = za.kegel + (zb.kegel - za.kegel) * f, W8 = '#ffd890', out = { v: [], h: [], lam };

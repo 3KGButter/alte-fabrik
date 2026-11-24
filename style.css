@@ -343,7 +343,8 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .lseite { margin: 0; font-size: clamp(22px, 4.2vh, 56px); font-weight: 600; color: #fff1d2; text-shadow: 0 3px 0 #000a; text-align: center; white-space: nowrap; }
 .lrechts { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: #9ba7c2; font-size: .85em; }
 .luhr { font-size: 1.5em; color: var(--l-amber); font-variant-numeric: tabular-nums; }
-.lstand { max-width: 14em; text-align: right; line-height: 1.1; }
+.lstand { max-width: 14em; text-align: right; line-height: 1.1; white-space: pre-line; }
+.lhead { position: relative; z-index: 40; }   /* v159: Abmelde-Schild liegt über der Tafel */
 .lknopf { display: inline-grid; place-items: center; min-width: 2.2em; height: 2.2em; padding: 0 .5em; border: 2px solid #3b4566; border-radius: 4px; background: var(--l-steel); color: #e7ebf5; font-size: 1em; }
 .lknopf.an { border-color: var(--l-amber); color: var(--l-amber); }
 .lknopf.warn { border-color: #f08a6a; color: #ffd0b0; background: #4a2028; }

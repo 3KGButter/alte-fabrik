@@ -434,13 +434,11 @@ const SCENE = (() => {
     add(H + 1, () => fxStep(lc, dt));
     if (VG.t !== undefined) { VG.t += dt; const q = VG.t / 2.6; if (q >= 1) delete VG.t; else { const out = q < .5 ? q * 2 : (1 - q) * 2, bx = VG.x + Math.sin(q * Math.PI * 2) * 18 * out, by = VG.y - 4 - out * 16;   /* Vogel fliegt eine Runde und kommt zurück */
       add(H + 2, () => bird(lc, Math.round(bx), Math.round(by), Math.floor(time * 10) % 2 === 0, false, Math.cos(q * Math.PI * 2) > 0 ? -1 : 1)); } }
-    delete HIT.owl; { const want = n > .6 && !gew ? 1 : 0;   /* bei Gewitter fliegt die Eule weg */ if (OW.p !== want) { if (OW.p === 0 || OW.p === 1) SFX.play('flap', { pan: SFX.panX(141), vol: .8 }); OW.p = Math.max(0, Math.min(1, OW.p + Math.sign(want - OW.p) * dt / 10)); }   /* gemächlicher Flug, etwa 10 Sekunden */   /* Eule fliegt abends an und morgens weg */
+    delete HIT.owl; if (!OW.s) { const H = WORKERS.HOFFIG; OW.s = H.EULE_Q.map(q => ART.buildSprite(H.eule(q))); OW.f = [0, 1, 2, 3, 4, 5, 'gleit'].map(k => ART.buildSprite(H.flug(k))); } { const want = n > .6 && !gew ? 1 : 0;   /* bei Gewitter fliegt die Eule weg */ if (OW.p !== want) { if (OW.p === 0 || OW.p === 1) SFX.play('flap', { pan: SFX.panX(141), vol: .8 }); OW.p = Math.max(0, Math.min(1, OW.p + Math.sign(want - OW.p) * dt / 10)); }   /* gemächlicher Flug, etwa 10 Sekunden */   /* Eule fliegt abends an und morgens weg */
       if (OW.p > 0) { const tr = SPR.cozyTree2, px0 = 141 + 2, py0 = G + 1 - tr.h + 7, q = OW.p, e = 1 - (1 - q) * (1 - q), r = 1 - e, ox = Math.round(px0 - r * 170 + Math.sin(r * 5.5) * 14 * r), oy = Math.round(py0 - r * 34 - Math.sin(r * Math.PI) * 10 + Math.sin(r * 14) * 3 * r), fly = q < 1, glide = Math.sin(r * 14) > .3, blink = !fly && (time % 6) < .15, fl = glide ? 1 : Math.floor(time * 5) % 2;   /* weiter Bogen mit Wellen: Flügelschläge, dazwischen Gleiten */
-        R(lc, ox - 2, oy, 5, 6, '#5c3a2e'); R(lc, ox - 1, oy + 3, 3, 3, '#a5703f'); R(lc, ox, oy + 2, 1, 1, '#e8a83a');
-        if (fly) { const ph = glide ? 1 : Math.floor(time * 7) % 4, dy = [-2, 0, 2, 0][ph];   /* Flügel: oben, Mitte, unten, Mitte; beim Gleiten ausgebreitet */
-          for (const sd of [-1, 1]) for (let i = 0; i < 5; i++) { const wx = sd < 0 ? ox - 3 - i : ox + 3 + i, wy = oy + 2 + Math.round(dy * (i + 1) / 5); R(lc, wx, wy, 1, i < 3 ? 2 : 1, i === 4 ? '#5c3a2e' : '#7f5236'); } }
-        else { R(lc, ox - 2, oy - 1, 1, 1, '#5c3a2e'); R(lc, ox + 2, oy - 1, 1, 1, '#5c3a2e'); R(lc, ox - 1, oy + 6, 1, 1, '#e8a83a'); R(lc, ox + 1, oy + 6, 1, 1, '#e8a83a'); }
-        if (!blink) { R(lc, ox - 1, oy + 1, 1, 1, '#c8902e'); R(lc, ox + 1, oy + 1, 1, 1, '#c8902e'); }   /* v156: Augen bernsteinfarben, leuchten nicht (auch nicht im Nebel) */
+        /* v159: Eule aus HOF-KERN (pxl): sitzend blinzelt sie, dreht den Kopf (auch ganz nach hinten) und plustert sich; im Flug schlägt sie mit den Flügeln, dazwischen gleitet sie */
+        if (fly) ART.blit(lc, OW.f[glide ? 6 : Math.floor(time * 10) % 6], ox, oy + 7, null, false);
+        else ART.blit(lc, OW.s[Math.floor(time * 2.2) % OW.s.length], ox, oy + 8, null, false);
         if (!fly) HIT.owl = { x: ox - 4, y: oy - 2, w: 9, h: 10, gim: 'owl' }; else delete HIT.owl;   /* antippbar, wenn sie im Baum sitzt */
         if (!fly && Math.random() < dt * .04) SFX.play('hoot', { pan: SFX.panX(ox), vol: .9, gap: 20 });   /* Eule ruft selten und leise */ } }
     // ---- Hof: feste Ausstattung ----
@@ -479,12 +477,14 @@ const SCENE = (() => {
     if (spots.length > 1) { const nt = nightW && st.fw === undefined, rainOut = wet && st.fw === undefined, sp2 = nt || rainOut ? spots.map(sp => ({ x: sp.x, act: 'idle', face: sp.face })) : lunch ? spots.map(sp => ({ x: sp.x, act: sp.act === 'sit' ? 'sit' : 'coffee', face: sp.face })) : spots;   /* Mittagspause: Kaffee und Bank; nachts nur der Nachtwächter */
       const c = WORKERS.crew('hof', Math.min(5, Math.max(1, nW)), sp2, 'small', 36, 286), cw = rainOut ? nightOnly(c, c => nt ? [c[0]] : [], 12) : nt ? nightOnly(c, c => [c[0]]) : c;   /* Regen: alle laufen zügig ins Trockene; nachts bleibt nur der Nachtwächter draußen */
       if (st.fw !== undefined) watch(c); else WORKERS.step(cw, dt);
+      if (c[0]) { if (nt) c[0].vn = 5; else delete c[0].vn; }   /* v159: nachts ist der erste der Nachtwächter (eigene Figur) */
       add(G + 5, () => { WORKERS.draw(lc, rainOut ? c : cw, G + 4, time);   /* bei Regen sieht man die anderen hinauslaufen */ if (nt) { const a = c[0], fc = (a.st === 'walk' ? a.dir : a.face) || 1, lx = Math.round(a.x) + (fc > 0 ? 3 : -3), ly = G - 1 + (a.st === 'walk' && Math.floor(a.dist / 3) % 2 ? 1 : 0);   /* Laterne in der Hand */
         R(lc, lx, ly - 1, 1, 1, '#3e2731'); R(lc, lx, ly, 1, 2, '#ffd56a'); L.push({ x: lx, y: ly, w: 1, h: 2, c: '#ffd56a', fire: true, move: 1, laterne: 1, pool: { x: lx, y: G + 5 } }); if (a.st === 'walk' && Math.random() < dt * .12) SFX.play('lantern', { pan: SFX.panX(lx), vol: .6, gap: 5 }); } }); }
     // Spaziergänger unten auf der Uferpromenade: bleiben stehen, schauen aufs Wasser, gehen weiter
     PROMC = null; ANG = null; if (spots.length > 1) { const ps = [{ x: 44, act: 'pier', face: 1 }, { x: 110, act: 'idle', face: 1 }, { x: 186, act: 'idle', face: -1 }, { x: 262, act: 'idle', face: 1 }, { x: 342, act: 'pond', face: -1 }];
       const c2 = WORKERS.crew('prom', Math.max(1, Math.min(2, Math.ceil(nW / 2))), ps, 'small', 28, 372), ntP = nightW && st.fw === undefined, rainP = wet && st.fw === undefined;
       if (rainP) nightOnly(c2, () => [], 12, true);   /* Regen: Promenade leer, auch kein Angler */
+      if (c2[0]) { if (ntP) c2[0].vn = 6; else delete c2[0].vn; }   /* v159: der Angler hat seine eigene Kleidung */
       else if (ntP) { const a0 = c2[0]; nightOnly(c2, c => [c[0]], 0, true);   /* abends geht der erste zum Steg, hinaus ans Ende und setzt sich als Angler */
         if (a0.act === 'pier' && a0.st === 'act') { a0.tt = a0.tt || 26; if (a0.t <= a0.tt * .5) { a0.t = a0.tt * .5; ANG = a0; } else a0.t -= dt; }
         else if (a0.st === 'walk' && a0.spot === 0) { if (!isFinite(a0.x)) a0.x = 44; if (!isFinite(a0.dist)) a0.dist = 0; const d = 44 - a0.x, sp = Math.sign(d) * Math.min(Math.abs(d), 4.2 * (dt || 0)); a0.x += sp; a0.dist += Math.abs(sp); a0.dir = Math.sign(d) || a0.dir; if (Math.abs(44 - a0.x) < .2) { a0.st = 'act'; a0.act = 'pier'; a0.tt = 26; a0.t = 26; } }
@@ -492,7 +492,7 @@ const SCENE = (() => {
       if (st.fw !== undefined) watch(c2); else if (!ntP && !rainP) WORKERS.step(c2, dt); PROMC = c2; add(ART.PROM + 5, () => WORKERS.draw(lc, c2, ART.PROM + 4, time));
       for (const a of c2) if (a.act === 'pond' && a.st === 'act') {
         const q = 1 - a.t / (a.tt || 1), up = q < .38, down = q > .62, yTop = ART.POND.y + 2, f = up ? q / .38 : down ? (1 - q) / .38 : 1, y = Math.round(ART.PROM + 4 - f * (ART.PROM + 4 - yTop)), x = Math.round(ART.gardenX(y));
-        add(y, () => { if (up || down) { const F = WORKERS.front(a.v, up); ART.blit(lc, F[Math.floor(Math.abs(ART.PROM - y) / 2) % 4], x, y + 1, null, false);   /* Math.abs (v136): in den ersten Schritten liegt y noch unter der Promenade, der negative Index gab kein Bild und brach das Zeichnen ab */ } else { const W2 = WORKERS.set('small', a.v), S2 = W2.S; ART.blit(lc, (q > .45 && q < .55 ? W2.wave : W2.idle)[Math.floor(time * 1.5) % 2], x + 3, y + Math.round(S2.h - S2.hipY - S2.thigh - S2.shin), null, false); } }); } }
+        add(y, () => { if (up || down) { const F = WORKERS.front(a.vn !== undefined ? a.vn : a.v, up); ART.blit(lc, F[Math.floor(Math.abs(ART.PROM - y) / 2) % 4], x, y + 1, null, false);   /* Math.abs (v136): in den ersten Schritten liegt y noch unter der Promenade, der negative Index gab kein Bild und brach das Zeichnen ab */ } else { const W2 = WORKERS.set('small', a.v), S2 = W2.S; ART.blit(lc, (q > .45 && q < .55 ? W2.wave : W2.idle)[Math.floor(time * 1.5) % 2], x + 3, y + Math.round(S2.h - S2.hipY - S2.thigh - S2.shin), null, false); } }); } }
     // Gabelstapler auf dem Fahrweg, Katzenroboter auf dem Grünstreifen
     if (st.owned.stapler) { const ph = time * .05, tgt = workC ? 205 + Math.sin(ph) * 95 : 318;   /* bei Gewitter abgestellt */   /* nachts weiter rechts am Weg abgestellt, gut sichtbar */ if (FK.x === undefined) FK.x = tgt; const dx = tgt - FK.x, mv = Math.max(-dt * 6, Math.min(dt * 6, dx)); FK.x += mv; if (Math.abs(mv) > .001) FK.dir = Math.sign(mv); const x = FK.x, moving = Math.abs(mv) > .001;   /* fährt abends zum Parkplatz und morgens wieder los */
       if (moving) SFX.hum('forklift', .18, SFX.panX(x)); SFX.edge('forkBeep', moving && FK.dir < 0 && Math.floor(time * 1.4) % 2 === 0, 'beep', { pan: SFX.panX(x), vol: .7 });   /* rückwärts piept er */ add(G + 4, () => fx('stapler', blit(lc, !workC && !moving ? FORK_E : FORK, x, G + 4, null, (FK.dir || 1) < 0))); }   /* abgestellt: Fahrer hat Feierabend, Gabel leer */
@@ -560,7 +560,7 @@ const SCENE = (() => {
       if (mq > .02) for (let i = 0; i < 5; i++) { const yy = WATER + 3 + i * 6, off = (time * (2 + i) + i * 70) % (W + 120) - 60; ctx.globalAlpha = mq * (.32 - i * .04); R(ctx, Math.round(off) - 60, yy, 140, 3, '#f4f6fb'); R(ctx, Math.round(off + 180) % (W + 120) - 60, yy + 2, 110, 2, '#f4f6fb'); } ctx.globalAlpha = 1; }
     {   // Entenfamilie: schwimmt am Tag dicht am Ufer entlang, dreht manchmal eine Runde am Steg und schwimmt rechts ganz aus dem Bild
       const P = 120, cyD = Math.floor(time / P), u = time % P, loop = cyD % 2 === 0, LA = 86, LO = loop ? 47 : 0, LEN = LA + LO + (W + 40 - 66), SP = 7;
-      if (DK.cyc !== cyD) { DK.cyc = cyD; DK.day = n < .4 && !gew && ART.selten('enten', cyD, .25); }   /* v156: nur alle paar Spieltage, zufällig */   /* bei Gewitter bleiben die Enten weg, Regen stört sie nicht */
+      if (DK.cyc !== cyD) { DK.cyc = cyD; DK.day = n < .4 && !gew && ART.selten('enten', cyD, .45); }   /* v156: nur alle paar Spieltage, zufällig */   /* bei Gewitter bleiben die Enten weg, Regen stört sie nicht */
       const at = d => { if (d < LA) return { x: -20 + d, y: WATER + 5, f: 1 }; if (d < LA + LO) { const a = (d - LA) / LO * Math.PI * 2; return { x: 66 + 10 * Math.sin(a), y: WATER + 10 - 5 * Math.cos(a), f: Math.cos(a) >= 0 ? 1 : -1 }; } const d2 = d - LA - LO; return { x: 66 + d2, y: WATER + 5 + Math.round(Math.sin(d2 * .05)), f: 1 }; };
       if (DK.boost > 0) { DK.boost -= dt; DK.extra = (DK.extra || 0) + dt * SP * 1.6; } if (DK.cyc2 !== cyD) { DK.cyc2 = cyD; DK.extra = 0; }   /* angetippt: kurz schneller */
       const d0 = u * SP + (DK.extra || 0); delete HIT.ducks; if (DK.day && d0 < LEN + 30) { const mq = at(Math.min(d0, LEN)); if (mq.x > -6 && mq.x < W + 6) HIT.ducks = { x: Math.round(mq.x) - 22, y: Math.round(mq.y) - 6, w: 30, h: 10, gim: 'ducks' };
@@ -577,10 +577,10 @@ const SCENE = (() => {
     tinted(ctx, PIER, PX - 6, WATER - 3, n * .5);
     if (PROMC) for (const a of PROMC) if (a.act === 'pier' && a.st === 'act' && a !== ANG) {   // geht von vorn gesehen auf den Steg, schaut aufs Wasser, geht von hinten gesehen zurück
       const q = 1 - a.t / (a.tt || 1), out = q < .3, back = q > .7, dep = out ? q / .3 : back ? (1 - q) / .3 : 1, by = ART.PROM + 4 + Math.round(dep * (WATER + 7 - ART.PROM - 4));
-      const F = WORKERS.front(a.v, back), fr = (out || back) ? F[Math.floor(Math.abs(by - ART.PROM) / 2) % 4] : F[4];
+      const F = WORKERS.front(a.vn !== undefined ? a.vn : a.v, back), fr = (out || back) ? F[Math.floor(Math.abs(by - ART.PROM) / 2) % 4] : F[4];
       ctx.save(); if (n > .01) ctx.filter = 'brightness(' + Math.round((1 - n * .5) * 100) + '%)'; ART.blit(ctx, fr, PX, by + 1, null, false); ctx.restore(); }
     if (ANG) {   // nachts: Angler sitzt am Stegende, Laterne neben sich, Schwimmer zuckt ab und zu
-      const ax = PX + 1, ay = WATER + 7, sp = WORKERS.frontSit(ANG ? ANG.v : 3)[0], u = time % 23, bite = u > 17 && u < 18.4, bx = PX + 15, by = WATER + 19 + (bite && Math.floor(u * 6) % 2 ? 1 : 0);
+      const ax = PX + 1, ay = WATER + 7, sp = WORKERS.frontSit(6)[0], u = time % 23, bite = u > 17 && u < 18.4, bx = PX + 15, by = WATER + 19 + (bite && Math.floor(u * 6) % 2 ? 1 : 0);
       ctx.save(); ctx.filter = 'brightness(' + Math.round((1 - n * .45) * 100) + '%)'; ART.blit(ctx, sp, ax, ay, null, false); ctx.restore();
       ctx.globalAlpha = .8; for (let i = 0; i <= 8; i++) R(ctx, ax + 3 + i, ay - 9 - Math.round(i * .6), 1, 1, '#7f5236'); ctx.globalAlpha = .35; for (let yy = ay - 14; yy < by; yy += 2) R(ctx, Math.round(ax + 11 + (bx - ax - 11) * (yy - ay + 14) / (by - ay + 14)), yy, 1, 1, '#d8d2cc'); ctx.globalAlpha = 1;
       R(ctx, bx, by, 1, 1, '#ff5a4a'); R(ctx, bx, by + 1, 1, 1, '#f4ecdc'); if (bite) { ctx.globalAlpha = .5; R(ctx, bx - 2, by + 2, 5, 1, '#e8f6ff'); ctx.globalAlpha = 1; } SFX.edge('bite', bite, 'plop', { pan: SFX.panX(bx), vol: .7 });
@@ -595,9 +595,7 @@ const SCENE = (() => {
         const ox = bx0 + 15, oy = top + 2, blx = ox + sw, bly = y + 3 - lift, hdx = ox - Math.round(sw * .45), hdy = oy - 2;   /* Dolle, Ruderblatt, Griff */
         for (let i = 0; i <= 10; i++) { const t2 = i / 10; R(ctx, Math.round(hdx + (blx - hdx) * t2), Math.round(hdy + (bly - hdy) * t2), 1, 1, col('#a5703f')); }   /* Ruder hinter dem Bootsrand (fernes Ruder) */
         { const lean = Math.round(-sw * .25), sx = ox + 1 + lean, sy = top - 8;   /* Ruderer sitzt mit Blick zum Heck (rechts), lehnt sich im Takt vor und zurück */
-          R(ctx, sx, sy, 4, 2, col('#b8474b')); R(ctx, sx + 1, sy - 1, 2, 1, col('#e0705a'));   /* Mütze */
-          R(ctx, sx, sy + 2, 4, 2, col('#f0c09a')); R(ctx, sx + 3, sy + 2, 1, 1, col('#3e2731')); R(ctx, sx, sy + 3, 1, 1, col('#c88a6a'));   /* Gesicht */
-          R(ctx, sx - 1, sy + 4, 5, 5, col('#e8a83a')); R(ctx, sx - 1, sy + 4, 1, 5, col('#c07a2a')); R(ctx, sx + 3, sy + 5, 1, 4, col('#f7d86a'));   /* Ölzeug-Jacke */
+          { const RS = WORKERS.hofSet(7).ruderer[Math.max(0, Math.min(2, lean + 1))]; ctx.save(); ctx.filter = 'brightness(' + Math.round(dk * 100) + '%)'; ART.blit(ctx, RS, sx + 1, sy + 13, null, false); ctx.restore(); }   /* v159: Ruderer aus HOF-KERN (rote Mütze, gelbes Ölzeug) */
           const hx2 = hdx + 1, hy2 = hdy + 1; for (let i = 0; i <= 4; i++) R(ctx, Math.round(sx + 3 + (hx2 - sx - 3) * i / 4), Math.round(sy + 5 + (hy2 - sy - 5) * i / 4), 1, 1, col('#c07a2a')); R(ctx, hx2, hy2, 2, 1, col('#f0c09a')); }   /* Arm zum Griff */
         tinted(ctx, BOAT, bx0, top, n * .45);
         for (let i = 0; i <= 12; i++) { const t2 = i / 12; R(ctx, Math.round(hdx + (blx - hdx) * t2), Math.round(hdy + 1 + (bly - hdy - 1) * t2), 1, 1, col('#cf9a5c')); }   /* nahes Ruder vor dem Bootsrand */
@@ -608,7 +606,7 @@ const SCENE = (() => {
         L.push({ x: lx - 1, y: top - 7, w: 3, h: 3, c: '#ffd56a', fire: true, move: 1, laterne: 1 }); if (!(typeof LICHT !== 'undefined' && LICHT.an())) glow(ctx, { x: lx - 1, y: top - 7, w: 3, h: 3, c: '#ffd56a' }, n * .9); ctx.globalAlpha = n * .35; R(ctx, lx - 1, y + 3, 3, 1, '#ffd56a'); R(ctx, lx, y + 5, 1, 1, '#ffd56a'); R(ctx, lx - 2, y + 7, 2, 1, '#ffd56a'); ctx.globalAlpha = 1; } }   /* Spiegelung der Laterne */
     {   // Raddampfer: kommt selten, legt kurz am unteren Ende des Stegs an (ohne zu wenden) und fährt mit der Strömung weiter
       const P = 150; let t2 = time % P; const stopX = PX + 13, y = WATER + 27, cyS = Math.floor(time / P);   /* legt so an, dass der Rumpf das Stegende überdeckt */
-      if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5 && !gew && ART.selten('dampfer', cyS, .25); }   /* v156: nur alle paar Spieltage, zufällig */   /* fährt nur am Tag und nicht bei Gewitter (beim Start der Runde entschieden) */
+      if (NB.cyS !== cyS) { NB.cyS = cyS; NB.day = n < .5 && !gew && ART.selten('dampfer', cyS, .45); }   /* v156: nur alle paar Spieltage, zufällig */   /* fährt nur am Tag und nicht bei Gewitter (beim Start der Runde entschieden) */
       let x = null, moving = true; if (!NB.day) t2 = 999;
       if (t2 < 45) { const q = t2 / 45; x = -50 + (stopX + 50) * (1 - (1 - q) * (1 - q)); }
       else if (t2 < 53) { x = stopX; moving = false; }

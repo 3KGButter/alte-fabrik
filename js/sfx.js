@@ -90,6 +90,9 @@ const SFX = (() => {
     error: (d, t) => { tone(d, t, 440, .12, .06, { type: 'triangle', lp: 1500 }); tone(d, t + .13, 349, .18, .06, { type: 'triangle', lp: 1400 }); },
     badge: (d, t) => { [N[0], N[2], N[3], N[5]].forEach((f, i) => tone(d, t + i * .13, f, .45, .08, { type: 'triangle', a: .02, lp: 2600 })); [N[7], N[9]].forEach((f, i) => tone(d, t + .55 + i * .09, f, .7, .025)); },
     unlock: (d, t) => { [N[5], N[7], N[8]].forEach((f, i) => tink(d, t + i * .1, .05, f)); },
+    abholen: (d, t) => { knock(d, t, .09, 320); knock(d, t + .07, .06, 280);   /* v159: Teile abholen: Kiste setzt auf, dann ein kurzes helles Aufwärts-Glitzern und Münzklang */
+      [N[4], N[7], N[9], N[9] * 2].forEach((f, i) => tone(d, t + .12 + i * .07, f, .22 + i * .05, .055 - i * .008, { type: 'triangle', lp: 3600 }));
+      tone(d, t + .4, N[9] * 3, .25, .01); sample(d, t + .16, 'muenze_teile_erhalten', { vol: .3, rate: 1.1 }); },
     crate: (d, t) => { knock(d, t, .1, 330); knock(d, t + .1, .08, 300); tone(d, t + .22, N[5], .3, .05, { type: 'triangle' }); tone(d, t + .3, N[7], .4, .045, { type: 'triangle' }); },
     stamp: (d, t) => { tone(d, t, 180, .12, .14, { to: 90, lp: 700 }); knock(d, t, .06, 260); },
     page: (d, t) => { hiss(d, t, .18, .03, { type: 'bandpass', f: 2400, to: 1200, q: .8, a: .03 }); knock(d, t + .12, .025, 520); },   /* Schildseite umblättern: kurzes Rascheln */

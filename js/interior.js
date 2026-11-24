@@ -978,9 +978,9 @@ const INNER = (() => {
     else if (w.pose === 'coffee') s = W.coffee[(time * .4 * tk.sp + tk.ph) % 1 < .25 ? 1 : 0];
     else if (w.pose === 'stretch' || w.pose === 'wave') s = W[w.pose][Math.floor(time * 2.2 + vi) % 2];
     else s = W.idle[Math.floor(time * (W.px ? 7 : .7) * tk.sp + tk.ph * 5) % W.idle.length];
-    LATE.push(() => WORKERS.put(g, s, Math.round(w.x), BASE + 13, w.dir < 0));   // erst nach allen Maschinen zeichnen
+    (w.pose === 'walk' || w.pose === 'carry' ? LATE2 : LATE).push(() => WORKERS.put(g, s, Math.round(w.x), BASE + 13, w.dir < 0));   // erst nach allen Maschinen zeichnen; v159: laufende Träger vor den Arbeitern am Platz
   }
-  const LATE = [];
+  const LATE = [], LATE2 = [];
   // Leseecke im Pförtnerhaus: Teppich, Ohrensessel, Stehlampe, Beistelltisch mit Radio, Zeitungsständer, große Pflanze
   const LOUNGE = S((() => { const g = Grid(70, 40);
     for (let y = 34; y < 40; y++) for (let x = 2 + (39 - y); x < 66 - (39 - y); x++) g.set(x, y, (x + y) % 8 < 1 ? 'K' : y === 34 || y === 39 ? 'K' : (x + y * 3) % 11 < 2 ? 'M' : 'L');   // Teppich
@@ -1767,6 +1767,7 @@ const INNER = (() => {
     const FUN = ['phone', 'coffee', 'stretch', 'idle', 'wave'];   // Maschinen aus: die Leute machen Pause
     const spots = roomRun ? RM.walk : RM.walk.map((p, i) => ({ x: p.x, face: p.face, act: FUN[(i + Math.floor(time / 25)) % FUN.length] })).concat(room === 'blechwerkstatt' ? [{ x: 62, act: 'coffee', face: -1 }] : []);
     if (nWork) { const c = WORKERS.crew('in_' + room, nWork, spots, 'big', 10, 374, room === 'pfoertner' ? 99 : undefined); WORKERS.step(c, dt); WORKERS.draw(lc, c, BASE + 13, time); }
+    ART.OCC.on = true; LATE2.forEach(f => f()); LATE2.length = 0; ART.OCC.on = false;
     if (room === 'kraftwerk') { const sx = 229 - Math.floor(TABLET.w / 2) - 1 + 76;   /* v154: zwei Bodenstrahler vor der Mecha-Bucht (wie an der Ehrentafel im Pförtnerhaus) */
       blit(lc, SPOT, sx, FLOOR + 47); blit(lc, SPOT, sx + 104, FLOOR + 47, null, true); }
     ART.OCC.on = true; FRONT.forEach(f => f()); ART.OCC.on = false;

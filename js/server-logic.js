@@ -467,19 +467,21 @@ function leitstand_(snap) {
   });
   const top = tags.map(t => ({ tag: t, klasse: prof[t].klasse || '', xp: prof[t].xp || 0, level: prof[t].level || 0, stufe: prof[t].stufe || '' }))
     .sort((a, b) => b.xp - a.xp).slice(0, 10).map((e, i) => Object.assign(e, { p: i + 1 }));
-  const gesamt = tags.reduce((a, t) => a + (prof[t].xp || 0), 0);
+  /* v159: Game over (Level † bzw. 0) zählt bei Schülern, Quests, Badges und XP-Summe nicht mehr mit; in den Ranglisten stehen sie weiter mit Kreuz */
+  const imSpiel = t => !(prof[t] && (prof[t].level || 0) === 0), aktiv = tags.filter(imSpiel);
+  const gesamt = aktiv.reduce((a, t) => a + (prof[t].xp || 0), 0);
   let quests = 0; const zaehl = {}; REGELN.badges.forEach(b => zaehl[b.id] = 0);
-  Object.keys(snap.done || {}).forEach(t => {
+  Object.keys(snap.done || {}).filter(imSpiel).forEach(t => {
     const bits = snap.done[t]; quests += (bits.match(/1/g) || []).length;
     const qs = snap.quests.map((q, i) => Object.assign({}, q, { done: bits.charAt(i) === '1' }));
     kontextAusQuests_(qs, prof[t] || {}, '').badges.forEach(b => { if (b.ok && b.id !== 'b8') zaehl[b.id]++; });
   });
   try {   // Mecha-Ingenieur steht nur im Spielstand
     const sh = standBlatt_(), n = sh.getLastRow() - 1;
-    if (n > 0) sh.getRange(2, 2, n, 1).getValues().forEach(r => { try { if ((JSON.parse(r[0]).mecha || 0) >= REGELN.mecha.length) zaehl.b8++; } catch (e) {} });
+    if (n > 0) sh.getRange(2, 1, n, 2).getValues().forEach(r => { try { if (imSpiel(String(r[0]).trim()) && (JSON.parse(r[1]).mecha || 0) >= REGELN.mecha.length) zaehl.b8++; } catch (e) {} });
   } catch (e) { console.warn('Spielstände nicht lesbar', e); }
   return { ok: true, leitstand: {
-    klassen: klassen, top: top, gesamtXp: gesamt, schueler: tags.length, quests: quests,
+    klassen: klassen, top: top, gesamtXp: gesamt, schueler: aktiv.length, quests: quests,
     levels: snap.levels || [], badges: REGELN.badges.map(b => ({ id: b.id, name: b.name, color: b.color, anzahl: zaehl[b.id] })),
     stand: snap.stand, at: snap.at } };
 }
