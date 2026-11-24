@@ -578,7 +578,7 @@ const INNER = (() => {
   const jetFlame = (g, x, y, w, len) => { for (let i = 0; i < len; i++) { const f = i / len, ww = w * (f < .7 ? 1 - .25 * f : (1 - .25 * .7) * Math.sqrt(Math.max(0, 1 - ((f - .7) / .3) ** 2))), x0 = x + (w - ww) / 2;
       if (ww < .8) continue; R(g, Math.round(x0), y + i, Math.max(1, Math.round(ww)), 1, f > .8 ? '#ff7a2c' : '#ff9a3c');
       const cw = ww * (f < .5 ? .6 : .35); if (cw >= 1) R(g, Math.round(x + (w - cw) / 2), y + i, Math.round(cw), 1, f < .25 ? '#fff3c0' : '#ffd56a'); } };
-  const MSTAUB = {};
+  const MSTAUB = {}; let LAMPAUS = false;
   const MSIDE = {}, mechaSidePose = (p, paint) => { const k = [p.step, paint].join(','); return MSIDE[k] || (MSIDE[k] = ART.buildSprite(mechaSideBig(p), ART.paintPal(paint))); };
   const MECHA_F = [0, 1, 2, 3, 4, 5, 6].map(k => S(mechaFront(k)));
   const MECHA_FP = {}, mechaFrontPose = (p, paint) => { const k = [p.bob, p.head, p.swing, p.raise, p.rL, p.rR, p.wv, p.awake, p.blade, p.core, p.schub, paint].join(','); return MECHA_FP[k] || (MECHA_FP[k] = ART.buildSprite(mechaFront(6, p), ART.paintPal(paint))); };   /* gecacht je Pose und Lackierung */
@@ -1031,8 +1031,8 @@ const INNER = (() => {
     return o; }
   function drawLounge(g, n, L, on, time) {
     const po = wiggle(g, BIGP, 10, BASE + 2, gimT('plantP', time, 1.2)); HIT.g_plantP = { x: po.x, y: po.y, w: BIGP.c.width, h: BIGP.c.height, gim: 'plantP' };
-    const o = blit(g, LOUNGE, 56, BASE + 1); blit(g, SCREEN, 101, BASE + 3); HIT.g_lamp = { x: o.x, y: o.y, w: 12, h: 36, gim: 'lamp' }; const lampOff = gimT('lamp', time, 1.4) !== null;
-    if (lampOff) { R(g, o.x + 2, o.y + 8, 8, 1, '#8a7a60'); R(g, o.x + 3, o.y + 2, 6, 5, 'rgba(40,30,40,.25)'); }   /* Lampe kurz aus */   // Leseecke weiter hinten, Paravent trennt sie vom Arbeitsbereich
+    const o = blit(g, LOUNGE, 56, BASE + 1); blit(g, SCREEN, 101, BASE + 3); HIT.g_lamp = { x: o.x, y: o.y, w: 12, h: 36, gim: 'lamp' }; if (GIM.lamp) { LAMPAUS = !LAMPAUS; delete GIM.lamp; } const lampOff = LAMPAUS;   /* v160: Antippen schaltet die Stehlampe aus und wieder an */
+    if (lampOff) { R(g, o.x + 2, o.y + 8, 8, 1, '#8a7a60'); R(g, o.x + 3, o.y + 2, 6, 5, 'rgba(40,30,40,.25)'); }   /* Lampe aus */   // Leseecke weiter hinten, Paravent trennt sie vom Arbeitsbereich
     if (on && n > .15 && !lampOff) L.push({ x: o.x + 3, y: o.y + 8, w: 6, h: 2, c: '#ffd56a', cone: true, len: 40 });   // Stehlampe leuchtet abends
     {   // Questbuch auf dem Beistelltisch: rotes Buch mit Goldbeschlag und Lesezeichen; Klick öffnet das Questbuch
       const bx = o.x + 46, by = o.y + 16; R(g, bx, by + 2, 10, 4, '#3e2731'); R(g, bx + 1, by + 1, 9, 4, '#8c3040'); R(g, bx + 1, by + 1, 9, 1, '#b8474b'); R(g, bx + 2, by + 4, 8, 1, '#f4ecdc');
@@ -1776,7 +1776,7 @@ const INNER = (() => {
     if (room === 'kraftwerk' && st.intro !== undefined) { const u = st.intro, dk = u < 1 ? u * .7 : u < 5 ? .7 : u < 6.5 ? .7 * (1 - (u - 5) / 1.5) : 0; if (dk > 0) { lc.globalAlpha = dk; R(lc, 0, 0, W, H, '#05060f'); lc.globalAlpha = 1; } DIM = dk; } else DIM = 0;   /* Halle wird für den Start dunkel */
     tint(lc, W, H, k.tint);
     if (!st.built) { lc.globalCompositeOperation = 'source-atop'; lc.fillStyle = 'rgba(40,30,50,.35)'; lc.fillRect(0, 0, W, H); lc.globalCompositeOperation = 'source-over'; }
-    if (typeof LICHT !== 'undefined') LICHT.apply(lc, W, H, room, t);   /* v154: Licht aus pxl (licht.js) */
+    if (typeof LICHT !== 'undefined') LICHT.apply(lc, W, H, room, t, room === 'pfoertner' && LAMPAUS ? { fest: 1, sig: 'lampe', lampeAus: 1 } : { fest: 1 });   /* v154: Licht aus pxl (licht.js); v160: Stehlampe ausknipsbar */
     sc.drawImage(layer, 0, 0);
     if (n > .3 && !lampsOn) { sc.globalAlpha = (n - .3) * .6; R(sc, 0, 0, W, H, '#0b1030'); sc.globalAlpha = 1; }
     stepParts(dt);

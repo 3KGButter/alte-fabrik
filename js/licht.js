@@ -33,21 +33,21 @@ const LICHT = (() => {
   const AMB = '#9aa6c8';
   // Raum: (zeit, info) -> { amb, ambC, lamps(c), glow: [{ pts | rects | hell, r, s, where }] }
   const RAEUME = {
-    pfoertner: (zt) => { const z = PF[zt], SB = STRAHLER[zt], WARM = z.warm; return { amb: z.ambient, ambC: AMB,
+    pfoertner: (zt, info = {}) => { const z = PF[zt], SB = STRAHLER[zt], WARM = z.warm, LA = !!info.lampeAus; return { amb: z.ambient, ambC: AMB,   /* v160: lampeAus = Stehlampe in der Leseecke ausgeknipst */
       lamps: c => {
         c.lamp(64, 57, { r: RUND(240, z), color: WARM, power: z.lampen }); c.lamp(292, 57, { r: RUND(220, z), color: WARM, power: z.lampen });
         KEGEL(c, 64, 58, 100, z, WARM, { breite: 12 }); KEGEL(c, 292, 58, 110, z, WARM, { breite: 12 });
         c.lamp(133, 84, { r: z.fenster[2], color: z.fenster[0], power: z.fenster[1] });
         c.lamp(192, 120, { r: 700, color: '#f3e7d3', power: .45 * z.lampen * z.raum });
         for (const x of [133, 159]) c.lamp(x, 141, { r: 40, color: '#9cc8ff', power: .95 * z.klein });
-        c.lamp(27, 142, { r: 40, color: '#ffd08a', power: .75 * z.klein });
+        if (!LA) c.lamp(27, 142, { r: 40, color: '#ffd08a', power: .75 * z.klein });
         for (const x of [198, 259]) c.lamp(x, 150, { r: 22, color: SF, power: 1.1 * SB });
         KEGEL(c, 199, 148, 58, z, SF, { dx: .45, dy: -1, wachsen: .5, staerke: .9 * SB }); KEGEL(c, 258, 148, 58, z, SF, { dx: -.45, dy: -1, wachsen: .5, staerke: .9 * SB });
       },
       glow: [{ pts: [[62, 55], [64, 55], [66, 55], [290, 55], [292, 55]], r: 7, s: z.schein, where: [55, 48, 250, 12] },
         { pts: [[197, 150], [198, 150], [259, 150], [260, 150]], r: 6, s: .85 * SB, where: [190, 144, 78, 12] },
         { pts: [[126, 139], [152, 139], [152, 141]], r: 3, s: .5, where: [124, 137, 44, 10] },
-        { pts: [[24, 138], [25, 138], [28, 138], [24, 145], [26, 145]], r: 6, s: z.schein * .7, where: [20, 134, 16, 10] },
+        { pts: LA ? [] : [[24, 138], [25, 138], [28, 138], [24, 145], [26, 145]], r: 6, s: z.schein * .7, where: [20, 134, 16, 10] },
         { hell: (r, g, b) => g > 170 && g > b + 50, r: 4, s: .5, where: [328, 146, 22, 16] }] }; },
     blechwerkstatt: (zt) => { const z = ZEITEN[zt]; return { amb: z.ambient, ambC: AMB,
       lamps: c => {
@@ -167,19 +167,19 @@ const LICHT = (() => {
   function apply(g, W, H, raum, t, info = {}, opt = {}) {
     const R = RAEUME[raum]; if (!R) return;
     const s = ST[raum] || (ST[raum] = { F: {}, sig: '', t: -9, halo: 0 }), now = performance.now();
-    const sig = W + 'x' + H + '|' + (info.sig || '');
+    const sig = W + 'x' + H + '|' + (info.fest ? '' : (info.sig || ''));   /* fest: Varianten (z. B. Lampe aus) bekommen eigene Felder statt eines Neuaufbaus */
     if (sig !== s.sig && (!s.sig || now - (s.sigT || 0) > 3000 || W + 'x' + H !== s.wh)) { s.sig = sig; s.sigT = now; s.wh = W + 'x' + H; s.F = {}; s.t = -9; s.halo = 0; }
     const [a, b, f] = raum === 'ehrenhalle' ? ['nacht', 'nacht', 0] : zeitGewicht(t);
-    const F = z => s.F[z] || (s.F[z] = feld(W, H, R(z, info)));
+    const vk = info.fest ? (info.sig || '') + ':' : '', F = z => s.F[vk + z] || (s.F[vk + z] = feld(W, H, R(z, info)));
     const fa = F(a), fb = F(b), gw = fa.gw, gh = fa.gh;
     if (!s.map || s.map.width !== gw || s.map.height !== gh) { s.map = mk(gw, gh); s.mg = s.map.getContext('2d'); s.id = s.mg.createImageData(gw, gh); s.t = -9; }
-    if (Math.abs(t - s.t) > .0015 || s.ab !== a + b) { s.t = t; s.ab = a + b;   /* Lichtkarte nur neu mischen, wenn sich die Tageszeit merklich geändert hat */
+    if (Math.abs(t - s.t) > .0015 || s.ab !== a + b + vk) { s.t = t; s.ab = a + b + vk;   /* Lichtkarte nur neu mischen, wenn sich die Tageszeit merklich geändert hat */
       const d = s.id.data, A = fa.L, B = fb.L;
       for (let i = 0, j = 0; i < A.length; i += 3, j += 4) { d[j] = (A[i] + (B[i] - A[i]) * f) * 127.5; d[j + 1] = (A[i + 1] + (B[i + 1] - A[i + 1]) * f) * 127.5; d[j + 2] = (A[i + 2] + (B[i + 2] - A[i + 2]) * f) * 127.5; d[j + 3] = 255; }
       s.mg.putImageData(s.id, 0, 0); }
     // Schein (glow) aus den Farben vor dem Licht: etwa einmal je Sekunde neu
     const cfgNow = f < .5 ? R(a, info) : R(b, info);
-    if (now - s.halo > 1000) { s.halo = now; s.hc = schein(g, W, H, cfgNow.glow, f < .5 ? 1 : 1); }
+    if (now - s.halo > 1000 || s.vk !== vk) { s.halo = now; s.vk = vk; s.hc = schein(g, W, H, cfgNow.glow, f < .5 ? 1 : 1); }
     if (opt.vorher) opt.vorher(cfgNow, f, a, b);
     // Multiplizieren: Kopie * (Karte/2), dann doppelt addieren = Kopie * Karte (bis 2-fach aufhellen)
     if (!s.w || s.w.width !== W || s.w.height !== H) { s.w = mk(W, H); s.wg = s.w.getContext('2d'); }

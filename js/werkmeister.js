@@ -40,7 +40,7 @@ const WERKMEISTER = (() => {
     // atmet ruhig (Oberkörper 1 Pixel), blinzelt (manchmal doppelt), schaut alle 11 s kurz links und rechts, redet bei Sprechblase
     const at = (time % 3.0) > 1.6 ? 'at' : '';
     const b = time % 3.7, zu = b < .14 || (Math.floor(time / 3.7) % 3 === 1 && b > .3 && b < .42);
-    const u = time % 11, blick = u > 9.2 && u < 10.0 ? 'li' : u > 10.0 && u < 10.8 ? 're' : '';
+    const blick = '';   /* v160: kein Seitenblick mehr (bei 2 Pixel großen Augen wirkte das verrutscht) */
     const bl = document.getElementById('wmblase'), redet = bl && !bl.hidden && (Math.floor(time * 7) % 3 !== 0);
     const n = redet ? (at ? 'atrd' : 'rd') : zu ? (at ? 'atbl' : 'bl') : blick ? (at + blick) : (at || 'st');
     const wink = Date.now() < (window.WM_WINK || 0), w2 = Math.floor(time * 4) % 2 ? '2' : '';   /* v152: winkt beim Gruß */

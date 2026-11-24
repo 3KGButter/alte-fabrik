@@ -125,11 +125,12 @@ function drawCat(c, S, p, extra) {
 
 // ---------- Animationen ----------
 const SIZES = { gross: { S: 1, w: 29, h: 19 }, klein: { S: .6, w: 17, h: 12 } }
+let KS = 1
 function mk(name, frames, fps, poseOf, opts = {}) {
   for (const [sz, d] of Object.entries(SIZES)) {
     const h = Math.ceil(d.h + (opts.hoch || 0) * d.S)
     anim(name + '_' + sz, { w: d.w, h, frames, fps, outline: 'g', loop: opts.loop !== false }, c => {
-      const r = poseOf(c.frame, c.phase); drawCat(c, d.S, r.p || r, r.extra) })
+      KS = d.S; const r = poseOf(c.frame, c.phase); drawCat(c, d.S, r.p || r, r.extra) })
   }
 }
 
@@ -138,7 +139,7 @@ mk('laufen', 8, 10, (k, ph) => {
   const foot = (x0, phase) => { const q = ((k / 8 + phase) % 1 + 1) % 1, A = 2.4
     if (q < .6) return [x0 + A - 2 * A * q / .6, 18]
     const t = (q - .6) / .4, e = ease(t); return [x0 - A + 2 * A * e, 18 - Math.sin(t * Math.PI) * 1.6] }
-  const bob = Math.round(Math.max(0, Math.cos(ph * Math.PI * 4)) * .9) * .7, sway = Math.sin(ph * Math.PI * 2)
+  const bob = KS < .8 ? 0 : Math.round(Math.max(0, Math.cos(ph * Math.PI * 4)) * .9) * .7, sway = Math.sin(ph * Math.PI * 2)
   return { ...STAND, hip: [8, 9 + bob * .6], chest: [17, 9 + bob], head: [22.5, 5 + bob * .6], neck: [19, 7.5 + bob],
     tail: [[6, 8.5 + bob * .5], [2 + sway * .4, 7], [2.5 + sway * 1.2, 1.5]],
     nhF: foot(8.5, 0), nfF: foot(17.5, .25), fhF: foot(7, .5), ffF: foot(16, .75) } })

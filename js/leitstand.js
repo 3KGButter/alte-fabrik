@@ -138,10 +138,16 @@ const LEITSTAND = (() => {
   // Überschrift wie eine Fallblattanzeige: jedes Blatt klappt kurz durch und bleibt dann stehen
   const ZEICHEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789';
   let fallTimer = 0;
+  /* v159: lange Überschriften (Produktionszähler, Klassen im Vergleich) werden kleiner, damit die Kästen links und rechts einzeilig bleiben */
+  function passen(el) { el.style.fontSize = ''; const head = el.parentElement; if (!head || getComputedStyle(head).gridTemplateColumns.split(' ').length !== 3) return;
+    const re = head.querySelector('.lrechts'), li = head.querySelector('.ltitel'), frei = head.clientWidth - 2 * Math.max(re.scrollWidth, li.scrollWidth) - 2 * 12 - 6, b = el.scrollWidth;
+    if (b > frei && b > 0) el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * Math.max(.55, frei / b)) + 'px'; }
+  window.addEventListener('resize', () => { const el = root && root.querySelector('#lSeite'); if (el) passen(el); });
   function fallblatt(el, text) {
     el.setAttribute('aria-label', text); clearInterval(fallTimer);
     const ruhig = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     el.innerHTML = text.split(' ').map(w => `<span class="lwort">${w.split('').map(c => `<span class="lfb" aria-hidden="true">${esc(ruhig ? c : ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)])}</span>`).join('')}</span>`).join('');
+    passen(el);
     if (ruhig) return;
     const bl = Array.from(el.querySelectorAll('.lfb')), ziel = text.replace(/ /g, '').split(''), start = performance.now();
     fallTimer = setInterval(() => {

@@ -995,7 +995,7 @@ const ART = (() => {
     const SK = [0, .15, .35, .55, .75, .9, 1, 1, 1, 1, 1, 1, 1, 1, .9, .75, .55, .35, .15, 0];
     const BALL = [[31, -5], [28, -4], [25, -1.5], [22, 2.5], null, null, null, null, [20, 15], [24, 17], [28, 17]], RK = [0, .3, .65, .95, 1, 1, .9, .55, .2, 0, 0];
     const DEF = {
-      laufen: [8, 10, 0, (k, ph) => { const bob = Math.round(Math.max(0, Math.cos(ph * Math.PI * 4)) * .9) * .7, s = Math.sin(ph * Math.PI * 2);
+      laufen: [8, 10, 0, (k, ph) => { const bob = KS < .8 ? 0 : Math.round(Math.max(0, Math.cos(ph * Math.PI * 4)) * .9) * .7, s = Math.sin(ph * Math.PI * 2);   /* v160: klein ohne Wippen, sonst flackert die Rückenkante */
         return { ...STAND, hip: [8, 9 + bob * .6], chest: [17, 9 + bob], head: [22.5, 5 + bob * .6], neck: [19, 7.5 + bob], tail: [[6, 8.5 + bob * .5], [2 + s * .4, 7], [2.5 + s * 1.2, 1.5]],
           nhF: walkFoot(k, 8.5, 0), nfF: walkFoot(k, 17.5, .25), fhF: walkFoot(k, 7, .5), ffF: walkFoot(k, 16, .75) }; }],
       stehen: [4, 3, 0, k => ({ ...STAND, tail: [[6, 8.5], [2 + sw(k) * .5, 7], [2.5 + sw(k) * 1.5, 1.5]] })],
@@ -1013,7 +1013,8 @@ const ART = (() => {
           if (!big) { set(cx, cy, 'w'); set(cx + 1, cy, 'v'); set(cx, cy + 1, 'v'); set(cx + 1, cy + 1, 'u'); return; }
           for (let y = -2; y <= 2; y++) for (let x = -2; x <= 2; x++) if (x * x + y * y <= r * r + .3) set(cx + x, cy + y, (x < 0 && y < 0) ? 'w' : y > 0 ? 'u' : 'v');
           set(cx, cy, 'E'); } }; }] };
-    return S => { const big = S > .8, W = big ? 29 : 17, H0 = big ? 19 : 12, o = {};
+    let KS = 1;
+    return S => { KS = S; const big = S > .8, W = big ? 29 : 17, H0 = big ? 19 : 12, o = {};
       for (const [n, [cnt, fps, hoch, fn]] of Object.entries(DEF)) { const H = Math.ceil(H0 + hoch * S);
         o[n] = { fps, f: [...Array(cnt)].map((_, k) => { const r = fn(k, k / cnt); return draw(W, H, S, r.p || r, r.extra); }) }; }
       return o; };

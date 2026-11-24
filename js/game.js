@@ -672,7 +672,7 @@
   });
   async function collect(id) {
     const r = await act({ action: 'collect', station: id }, true);
-    if (r.ok && r.got) { Object.keys(r.got).forEach(k => popAt(id, k)); toast(r.msg); }
+    if (r.ok && r.got) { SFX.play('abholen', { vol: .9 }); Object.keys(r.got).forEach(k => popAt(id, k)); toast(r.msg); }   /* v160: Belohnungsklang (collect läuft leise, deshalb hier) */
     renderPanel(true);
   }
   async function claimAll() {
