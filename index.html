@@ -10,9 +10,32 @@
 <meta name="theme-color" content="#d3dfe4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#11172a" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
+<link rel="preload" href="fonts/pixelify-sans-latin-400-normal-fabrik.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/pixelify-sans-latin-600-normal-fabrik.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<!-- v161: Startbilder für die App auf dem iPad-Homescreen (tools/startbilder.js) -->
+<link rel="apple-touch-startup-image" href="icons/start/start_820x1180_p_l.png" media="(prefers-color-scheme: light) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_820x1180_l_l.png" media="(prefers-color-scheme: light) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_834x1194_p_l.png" media="(prefers-color-scheme: light) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_834x1194_l_l.png" media="(prefers-color-scheme: light) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_1024x1366_p_l.png" media="(prefers-color-scheme: light) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_1024x1366_l_l.png" media="(prefers-color-scheme: light) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_810x1080_p_l.png" media="(prefers-color-scheme: light) and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_810x1080_l_l.png" media="(prefers-color-scheme: light) and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_744x1133_p_l.png" media="(prefers-color-scheme: light) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_744x1133_l_l.png" media="(prefers-color-scheme: light) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_820x1180_p_d.png" media="(prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_820x1180_l_d.png" media="(prefers-color-scheme: dark) and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_834x1194_p_d.png" media="(prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_834x1194_l_d.png" media="(prefers-color-scheme: dark) and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_1024x1366_p_d.png" media="(prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_1024x1366_l_d.png" media="(prefers-color-scheme: dark) and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_810x1080_p_d.png" media="(prefers-color-scheme: dark) and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_810x1080_l_d.png" media="(prefers-color-scheme: dark) and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
+<link rel="apple-touch-startup-image" href="icons/start/start_744x1133_p_d.png" media="(prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="icons/start/start_744x1133_l_d.png" media="(prefers-color-scheme: dark) and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)">
 <title>Die Alte Fabrik</title>
-<link rel="stylesheet" href="style.css?v=161">
+<link rel="stylesheet" href="style.css?v=162">
 </head>
 <body>
 <div class="app hidden" id="app">
@@ -44,7 +67,7 @@
   </aside>
 </div>
 
-<div class="screen" id="loading"><div class="card center"><canvas class="emblem" data-emblem width="1" height="1" aria-hidden="true"></canvas><div class="logo">Die Alte Fabrik</div><p class="muted" id="loadingText">Die Fabrik wird geladen …</p></div></div>
+<div class="screen" id="loading"><div class="card center"><img class="emblem" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAkCAYAAADhAJiYAAAEUUlEQVR4AaSXW4hVVRjHvzNDNdjDnDepoKeiGiIGIh8kYt6EIcGH6GViQMMgkkiyFC2khLAHzYqpMC8wOCADoqgIKog+KKMPMt4GwQcHUVDE+13U8fyW/jffXnvtM/uMw/zPd//Wf7611zp72myKP9/29UykSsv8qdyUryVCLCb8/nOXofum2PKjAx+volcmRHMWE5o1Vw6Suma5cawSIZrSPC6uvdQZprRwfv8EOXEcm7qyGPEYlQj9NbS/tuS38ay2443Pg77m74XGgqtXzwsSPQTcx+IVY0a9czVVk4Tiv4gJrBn4MTSCzP0LwyaJExt5Y3QUkQMkfb+ve7snQC7JGQVCFPsmkGECLBqT+OTXunnM3t5jkBK0jvpBZHn/NAPointZIKQgTb6b99lETMYTUK6XkBIgphj9ICK7TOYIaTpK/uPPBcZksJGQQa+CFVeO2aaVL9uXvSNhatR0dncjAiCXmlJGKCbjt4cOrZAhP4amNRmpjBAngRNBI5FBYk+FzKwdQ/b9kW229siwsYX0ARATqV8G79q/u0Zr+IWMEA6RYnsgg5wKGXrtnt1nq2bMsa9mPLsiICUyyBQZ6nKEtG0vSobGKUDq8OD+EJr0GSKrfdqbufsFH5j1Tt1WrVyAmqGqLyt4rrz7Qf25lhZhQkwGPL57LpwqJhSn79m4qUCqqs/3On38ujeNkwbkbIMId4QAmbJnpyoB8rRALH8Yn2MixbYJIhUm5Isgg3117BTCJIPR+GCxePtSvkZq7ld9JHNBZxQIEeMUIMuKIUDcI+VTXH0k5ZdkYjevPwxmklCIuI+PDx0wUN+6K0h00MxWef/br9nA9EcyCxIy3lmJ0MlLdwxQiBRascmNEZMh3qbLkFsa4OQmPbjkMmqG96e/at9s7grAWcUmB5AvrO89Yzr6gyPt9n/jWgJDh8bCjR0mBCmgojLJswUURwdltvxl8pWOdoMIUE4gJKOZZJv49gbkVbHJAeRXRY4QU0ptG2MHNEUK2+/dMAFfHPc2ut+un9bfLnyxkpMjpEuSAEg9S/inAk+G+i8+emR9M7sK/9tlhDwZ/1xQ3D33mp1f3mn1f14PEh30b3zPBOw4Lrvjw7O0yaDTNb/HCqQyQmzXomVHs7c7kWJKdPr03LgN77zYMt7a+ezFXydLZOjpTxc2yAhhDGwZqfGegg5ECh0stYuIyiAfIoAinhskSJHBnyOEwwNyi5YdzVw0ZhEhCzhFMST5mgi91u09XoOISy+oBUK8UlIM0OOpsYjAojEUQ0IGqV6szp0DKSR2jAIhEiAC0AE6TdE9WCyG4pBBX/zfzcLxLiNDfpIQAQ/eVXhv8T50SHosXXsrvOuIDDlzZz4pnCT8ZahEKDUhFuWVgZjw4P7jwjrNtqeQ3HBUItTIC2PXNJgEvjJAQmi2Pan6yoQo1iQ27DsRTku8GDZEkAJ1raAlQr4xC3pbeplf8cnkUwAAAP//4f/drAAAAAZJREFUAwCSTgV2Hz7CxwAAAABJRU5ErkJggg==" width="36" height="36" alt="" aria-hidden="true"><!-- v161: Wappen sofort sichtbar (fest eingebettet) --><div class="logo">Die Alte Fabrik</div><p class="muted" id="loadingText">Die Fabrik wird geladen …</p><div class="ladebalken" aria-hidden="true"><i id="ladeBalken"></i></div></div></div>
 <div class="screen hidden" id="login">
   <form class="card" id="loginForm" autocomplete="off">
     <canvas class="emblem" data-emblem width="1" height="1" aria-hidden="true"></canvas>
@@ -63,24 +86,25 @@
 </div>
 <div id="busy" class="hidden"><div class="spinner"></div></div>
 
-<script src="js/config.js?v=161"></script>
-<script src="js/server-logic.js?v=161"></script>
-<script src="js/mock.js?v=161"></script>
-<script src="js/ufer_spr.js?v=161"></script>
-<script src="js/badges.js?v=161"></script>
-<script src="js/sfx.js?v=161"></script>
-<script src="js/art.js?v=161"></script>
-<script src="js/licht.js?v=161"></script>
-<script src="js/figpx.js?v=161"></script>
-<script src="js/workers.js?v=161"></script>
-<script src="js/werkmeister.js?v=161"></script>
-<script src="js/overlay.js?v=161"></script>
-<script src="js/icons.js?v=161"></script>
-<script src="js/scene.js?v=161"></script>
-<script src="js/interior.js?v=161"></script>
-<script src="js/badgeroom.js?v=161"></script>
-<script src="js/leitraum.js?v=161"></script>
-<script src="js/leitstand.js?v=161"></script>
-<script src="js/game.js?v=161"></script>
+<script>/* v161: Ladebalken wächst mit jedem geladenen Skript */ function LB(i) { const e = document.getElementById("ladeBalken"); if (e) e.style.width = Math.round(i / 19 * 92) + "%"; }</script>
+<script src="js/config.js?v=162"></script><script>LB(1)</script>
+<script src="js/server-logic.js?v=162"></script><script>LB(2)</script>
+<script src="js/mock.js?v=162"></script><script>LB(3)</script>
+<script src="js/ufer_spr.js?v=162"></script><script>LB(4)</script>
+<script src="js/badges.js?v=162"></script><script>LB(5)</script>
+<script src="js/sfx.js?v=162"></script><script>LB(6)</script>
+<script src="js/art.js?v=162"></script><script>LB(7)</script>
+<script src="js/licht.js?v=162"></script><script>LB(8)</script>
+<script src="js/figpx.js?v=162"></script><script>LB(9)</script>
+<script src="js/workers.js?v=162"></script><script>LB(10)</script>
+<script src="js/werkmeister.js?v=162"></script><script>LB(11)</script>
+<script src="js/overlay.js?v=162"></script><script>LB(12)</script>
+<script src="js/icons.js?v=162"></script><script>LB(13)</script>
+<script src="js/scene.js?v=162"></script><script>LB(14)</script>
+<script src="js/interior.js?v=162"></script><script>LB(15)</script>
+<script src="js/badgeroom.js?v=162"></script><script>LB(16)</script>
+<script src="js/leitraum.js?v=162"></script><script>LB(17)</script>
+<script src="js/leitstand.js?v=162"></script><script>LB(18)</script>
+<script src="js/game.js?v=162"></script><script>LB(19)</script>
 </body>
 </html>

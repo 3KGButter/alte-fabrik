@@ -848,11 +848,13 @@
       if (remember) store.set('altefabrik_cred', JSON.stringify({ tag, pin }));
       if (r.leitstand) {   /* Lehrkraft: Leitstand statt Fabrik */
         $('login').classList.add('hidden'); $('app').classList.add('hidden');
-        LEITSTAND.start(r.leitstand, () => api({ action: 'leitstand' }), () => { store.set('altefabrik_cred', ''); location.reload(); });
+        if (remember) store.set('altefabrik_leit', JSON.stringify({ tag, d: r.leitstand }));   /* v161: für den nächsten Start sofort zeigen */
+        LEITSTAND.start(r.leitstand, () => api({ action: 'leitstand' }).then(x => { if (remember && x && x.ok && x.leitstand) store.set('altefabrik_leit', JSON.stringify({ tag, d: x.leitstand })); return x; }), () => { store.set('altefabrik_cred', ''); store.set('altefabrik_leit', ''); location.reload(); });
         return true;
       }
       apply(r);
       $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+      setTimeout(() => { try { void INNER.HIT; } catch (e) {} }, 1200);   /* v161: Innenräume im Leerlauf vorbauen, damit der erste Hallenbesuch flüssig ist */
       setTimeout(besuchZettel, 600);   /* Zettel unter der Symbolleiste: was seit dem letzten Besuch dazukam (ersetzt die Lieferwagen-Meldung) */
       return true;
     } catch (e) { console.error(e); $('loginError').textContent = 'Keine Verbindung zum Server.'; return false; }
@@ -871,15 +873,23 @@
   /* Leistensymbole so grob wie die Spielgrafik: 21 Symbolpixel x Pixelgröße des Werkshofs */
   (() => { const st = $('stage'); if (!st || !window.ResizeObserver) return; const fit = () => { const k = st.clientWidth / W; if (k > 0) document.documentElement.style.setProperty('--icpx', Math.round(Math.max(30, Math.min(56, 21 * k))) + 'px'); document.documentElement.style.setProperty('--respx', Math.round(Math.max(24, Math.min(40, 14 * k))) + 'px'); }; new ResizeObserver(fit).observe(st); fit(); })()   /* detaillierte Leistensymbole */;
     try { if (document.fonts) await Promise.race([document.fonts.load('16px "Pixelify Sans"'), new Promise(r => setTimeout(r, 1500))]); } catch (e) {}
-    $('loading').classList.add('hidden');
+    /* v161: Ladebildschirm bleibt, bis die Anmeldung durch ist, und blendet dann weich aus; der Leitstand startet sofort mit den zuletzt geladenen Zahlen */
+    const ladeWeg = () => { const L = $('loading'); if (L.classList.contains('hidden')) return; const B = $('ladeBalken'); if (B) B.style.width = '100%'; L.classList.add('weg'); setTimeout(() => L.classList.add('hidden'), 360); };
     requestAnimationFrame(frame);
     if (MOCK) $('mockHint').textContent = 'Vorschau-Modus: Es ist kein Server eingetragen. Melde dich mit beliebigem Namen und PIN an.';
     let saved = null; try { saved = JSON.parse(store.get('altefabrik_cred')); } catch (e) {}
-    if (saved && saved.tag && saved.pin && await doLogin(saved.tag, saved.pin, true)) return;
+    if (saved && saved.tag && saved.pin) {
+      let lc = null; try { lc = JSON.parse(store.get('altefabrik_leit') || 'null'); } catch (e) {}
+      if (lc && lc.tag === saved.tag && lc.d) { cred = { tag: saved.tag, pin: saved.pin }; $('app').classList.add('hidden'); ladeWeg();
+        LEITSTAND.start(lc.d, () => api({ action: 'leitstand' }).then(r => { if (r && r.ok && r.leitstand) store.set('altefabrik_leit', JSON.stringify({ tag: saved.tag, d: r.leitstand })); return r; }), () => { store.set('altefabrik_cred', ''); store.set('altefabrik_leit', ''); location.reload(); }, true);
+        return; }
+      $('loadingText').textContent = 'Anmelden …';
+      const ok = await doLogin(saved.tag, saved.pin, true); ladeWeg(); if (ok) return; }
+    ladeWeg();
     $('login').classList.remove('hidden');
   })();
 
-  window.__G = { startCut, act, get unterwegs() { return unterwegs(); }, get D() { return D; }, setView, pick, openTutorial, closeModal, setMode: m => { mode = m; sel = null; renderPanel(true); }, get view() { return view; }, get sel() { return sel; }, SCENE, INNER };
+  window.__G = { startCut, act, get unterwegs() { return unterwegs(); }, get D() { return D; }, setView, pick, openTutorial, closeModal, setMode: m => { mode = m; sel = null; renderPanel(true); }, get view() { return view; }, get sel() { return sel; }, SCENE, get INNER() { return INNER; } };   /* v161: INNER erst bei Bedarf */
 })();
 
 // Spielsymbol in Lade- und Anmeldefenster, dazu als Tab-Symbol

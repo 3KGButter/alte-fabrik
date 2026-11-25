@@ -201,13 +201,14 @@ const LEITSTAND = (() => {
     try { const r = await laden(); if (r && r.ok && r.leitstand) { const id = pages[idx] && pages[idx].id; D = r.leitstand; pages = seitenBauen(); const j = pages.findIndex(p => p.id === id); idx = j >= 0 ? j : 0; zeigen(0); uhr(); } } catch (e) { console.warn('Leitstand: neu laden fehlgeschlagen', e); }
   }
 
-  function start(daten, ladeFn, abmelden) {
+  function start(daten, ladeFn, abmelden, gleichNeu) {
     D = daten; laden = ladeFn; pages = seitenBauen(); idx = 0;
     document.documentElement.classList.add('leitmodus');
     if (!root) aufbauen();
     root.querySelector('#lAus').onclick = () => { if (confirmAus()) abmelden(); };
     knopfPause(); zeigen(0); uhr(); starteTakt(AUTO_MS);
     clearInterval(ladeTimer); ladeTimer = setInterval(() => { if (!document.hidden) neuLaden(); }, NEU_LADEN_MS);
+    if (gleichNeu) neuLaden();   /* v161: Start mit gespeicherten Zahlen, frische kommen sofort hinterher */
   }
   // Abmelden mit zweitem Tippen bestätigen (kein Browser-Dialog)
   let ausBereit = 0;

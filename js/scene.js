@@ -131,7 +131,7 @@ const SCENE = (() => {
     for (const y of [4, 6, 8]) g.rect(14, y, 1, 1, 'q');
     g.rect(0, 14, 18, 1, 'b'); return g.rows(); })());
   const CAT = ART.buildSprite(['i...i..', 'ijjji..', 'jAjAj.j', 'jjjjjjj', '.j.j.j.']);
-  Object.assign(DS, { turm: TOWER, stapler: FORK, kran: CRANE, statue: STATUE, katze: ART.robocat(1).sit[1] });   // Vorschaubilder im Katalog
+  Object.assign(DS, { turm: TOWER, stapler: FORK, kran: CRANE, statue: STATUE }); Object.defineProperty(DS, 'katze', { get: () => ART.robocat(1).sit[1], enumerable: true });   // Vorschaubilder im Katalog (Katze erst bei Bedarf)
   // Deko-Plätze: hinten am Gehweg und vorne auf dem Grünstreifen (Tiefe)
   const SLOTS = [[18, G + 13], [152, G + 14], [236, G + 15], [306, G + 20], [12, 147], [70, 151], [158, 151], [236, 151], [306, 150], [362, 148]].map(([x, b]) => ({ x, b }));
   // Steg: Bohlen mit Fugen und Glanzkante, Querbalken, Pfähle mit Eisenringen; Ruderboot mit Rudern

@@ -38,7 +38,7 @@ const BADGEROOM = (() => {
   paint();
   const ttl = mk(80, 10); // Schrift auf dem Schild wird im Spiel mit der Pixelschrift gesetzt
   const SPOTS = [[30, 1], [162, -1]];
-  const SPOT = INNER.SPOT;   // derselbe Strahler wie im Pförtnerhaus
+  // derselbe Strahler wie im Pförtnerhaus (erst beim Zeichnen holen, damit die Innenräume nicht schon beim Laden gebaut werden)
   const motes = Array.from({ length: 40 }, (_, i) => ({ x: Math.random() * W, y: 30 + Math.random() * 150, s: .5 + Math.random(), p: Math.random() * 7 }));
   let HITS = [];
   const tmp = mk(64, 64), tg = tmp.getContext('2d');
@@ -77,7 +77,7 @@ const BADGEROOM = (() => {
     const NEU = typeof LICHT !== 'undefined' && LICHT.an();
     // Strahler und Lichtkegel nach oben
     SPOTS.forEach(([sx, dir], i) => {
-      ctx.drawImage(dir > 0 ? SPOT.c : SPOT.f, sx - 4, FL - 11);
+      ctx.drawImage(dir > 0 ? INNER.SPOT.c : INNER.SPOT.f, sx - 4, FL - 11);
       const flick = .94 + .06 * Math.sin(time * 2.3 + i), len = 185;
       if (NEU) { R(ctx, sx - 1, FL - 7, 3, 1, '#fff3c0'); return; }   /* v154: Kegel kommen aus licht.js */
       ctx.globalCompositeOperation = 'lighter';

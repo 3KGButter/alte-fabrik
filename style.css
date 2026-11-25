@@ -548,3 +548,8 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .wmblase { transition: none; } }
 /* v144 Handy: Uhr im Leitstand-Kopf weglassen (das Handy zeigt sie selbst), damit beide Kästen nebeneinander passen */
 @media (max-width: 600px) { .lhead .luhr { display: none; } .lhead { padding: 0 4px; gap: 8px; } }
+
+/* v161: Ladebalken im Startbildschirm */
+.ladebalken { width: 180px; height: 8px; margin: 10px auto 0; border-radius: 2px; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); overflow: hidden; }
+.ladebalken i { display: block; height: 100%; width: 4%; background: linear-gradient(#ffd56a, #e8a83a); transition: width .25s ease-out; }
+#loading { transition: opacity .35s; } #loading.weg { opacity: 0; pointer-events: none; }

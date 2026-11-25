@@ -1,6 +1,9 @@
 // Innenansichten der fünf Gebäude mit ihren Maschinen (kaputt / aus / läuft)
 'use strict';
-const INNER = (() => {
+/* v161: Die Innenräume werden erst gebaut, wenn sie zum ersten Mal gebraucht werden (Leitstand braucht sie nie,
+   Schüler bekommen sie kurz nach dem Start im Leerlauf). Spart beim Start gut eine halbe Sekunde. */
+let INNER_ = null;
+const INNER_BAU = () => {
   const { W, H, R, mk, mix, hx, rgb, blit, skyAt, tint, glow, backdrop, parts, puff, stepParts, Grid, fill, brickWall, corrugated, sh } = ART;
   const FLOOR = 136, BASE = FLOOR + 40, CEIL_PF = 46, CEIL_LAB = 18;
   const scene = mk(W, H), sc = scene.getContext('2d');
@@ -1823,4 +1826,5 @@ const INNER = (() => {
   const CATBIG = S(['jj.....jj....', 'jij...jij....', 'jjjjjjjjj....', 'jAjjjjAjj...j', 'jjjjhjjjj..j.', '.jjjjjjjjjjj.', '.jjjjjjjjjjj.', '.jj.jj..jj.jj', '.hh.hh..hh.hh']);
 
   return { CRATE, gim: (name, o) => { GIM[name] = Object.assign({}, o || {}); }, MNEXT, draw, HIT, ROOMS, FLOOR, DSI, MECHA_STAGES, MECHA, mechaPose, MECHA_F, mechaFrontPose, mechaSidePose, SPOT };
-})();
+};
+Object.defineProperty(window, 'INNER', { get() { if (!INNER_ && window.__INNERSPUR) console.warn('INNER gebaut', new Error().stack); return INNER_ || (INNER_ = INNER_BAU()); }, configurable: true });
