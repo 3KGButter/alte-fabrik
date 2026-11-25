@@ -53,7 +53,12 @@ const SFX = (() => {
     step: ['schritt_beton', .22, { lp: 2400 }], creak: ['knarren_kiste', .4], wood: ['hammer_holz', .35], assemble: ['metall_klick_montage', .3, { lp: 3500 }], latch: ['metall_einrasten_montage', .28, { lp: 3500 }], blade: ['klinge_ausfahren', .45, { vary: .03 }], mstep: ['mecha_schritt', .55, { lp: 2400 }, true], door: ['tuer_auf', .32, { lp: 3500 }]
   };
   ['pointerdown', 'keydown', 'touchstart'].forEach(e => addEventListener(e, ensure, { capture: true, passive: true }));   // Browser erlauben Ton erst nach dem ersten Tippen
-  document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) { ac.suspend(); if (unlockEl) unlockEl.pause(); } else if (on) { ac.resume(); if (unlockEl) unlockEl.play().catch(() => {}); } });
+  document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) { ac.suspend(); if (unlockEl) unlockEl.pause(); } else wecken(); });
+  /* v161: nach dem Zurückkehren sofort wieder anlaufen – bei Sichtbarkeit, pageshow/focus und spätestens beim ersten Antippen
+     (iOS lässt das Fortsetzen oft nur in einer Nutzergeste zu; vorher wurde nur alle 2 s beim nächsten Klang neu versucht) */
+  function wecken() { if (!ac || !on || document.hidden) return; if (ac.state !== 'running') { try { ac.resume(); } catch (e) {} } if (unlockEl && unlockEl.paused) unlockEl.play().catch(() => {}); }
+  ['pageshow', 'focus'].forEach(e => addEventListener(e, wecken));
+  ['pointerdown', 'touchstart', 'keydown'].forEach(e => addEventListener(e, () => { if (ac && on && (ac.state !== 'running' || (unlockEl && unlockEl.paused))) wecken(); }, { capture: true, passive: true }));
   const ready = () => !!ac && on && ac.state === 'running';
   const clampPan = p => Math.max(-1, Math.min(1, p || 0));
 
@@ -229,7 +234,7 @@ const SFX = (() => {
   let lastResume = 0;
   function frame(dt) {   // am Ende jedes Bildes: nicht mehr gerufene Dauergeräusche ausblenden
     if (!ac) return; const now = ac.currentTime;
-    if (ac.state !== 'running' && on && !document.hidden && performance.now() - lastResume > 2000) { lastResume = performance.now(); try { ac.resume(); } catch (e) {} if (unlockEl && unlockEl.paused) unlockEl.play().catch(() => {}); }
+    if (ac.state !== 'running' && on && !document.hidden && performance.now() - lastResume > 300) { lastResume = performance.now(); try { ac.resume(); } catch (e) {} if (unlockEl && unlockEl.paused) unlockEl.play().catch(() => {}); }
     for (const k in live) { const L = live[k], w = L.seen === frameN ? Math.min(1, L.want) : 0; L.g.gain.setTargetAtTime(w, now, .18);
       if (w === 0) { L.quiet += dt || .016; if (L.quiet > 2) { L.nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { L.g.disconnect(); } catch (e) {} delete live[k]; } } else L.quiet = 0; }
     frameN++;
