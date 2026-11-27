@@ -172,19 +172,20 @@ const LEITRAUM = (() => {
     naechste -= dt;
     if (naechste <= 0 && LEUTE.length < 2) {
       naechste = rnd(18, 50); const dir = Math.random() < .5 ? 1 : -1, z = Math.random();
-      if (z < .15 && !LEUTE.some(p => p.mecha)) LEUTE.push({ mecha: true, x: dir > 0 ? -20 : W + 20, dir, dist: 0, v: 7 });
-      else if (z < .37) LEUTE.push({ kat: true, c: { x: dir > 0 ? -10 : W + 10, tx: dir > 0 ? W + 30 : -30, mode: 'walk', t: 0, dir, dist: 0 } });
-      else LEUTE.push({ vi: Math.floor(Math.random() * 5), x: dir > 0 ? -10 : W + 10, dir, dist: 0, v: rnd(11, 15), carry: Math.random() < .4 });
+      // v165: höchstens ein Mecha und eine Katze gleichzeitig, öfter Arbeiter
+      if (z < .12 && !LEUTE.some(p => p.mecha)) LEUTE.push({ mecha: true, x: dir > 0 ? -40 : W + 40, dir, dist: 0, v: 11 });
+      else if (z < .24 && !LEUTE.some(p => p.kat)) LEUTE.push({ kat: true, c: { x: dir > 0 ? -10 : W + 10, tx: dir > 0 ? W + 30 : -30, mode: 'walk', t: 0, dir, dist: 0 } });
+      else LEUTE.push({ vi: Math.floor(Math.random() * 5), x: dir > 0 ? -20 : W + 20, dir, dist: 0, v: rnd(11, 15), carry: Math.random() < .4 });
     }
     const fuss = lay.band.boden;
     for (let i = LEUTE.length - 1; i >= 0; i--) {
       const p = LEUTE[i];
       if (p.kat) { const r = ART.catStep(p.c, dt, zeit, 0, W, 9, .55); ART.blit(g, r.fr, r.x, fuss + 1, null, r.flip); if (p.c.x > W + 20 || p.c.x < -20) LEUTE.splice(i, 1); continue; }
       p.x += p.dir * p.v * dt; p.dist += p.v * dt;
-      if (p.mecha) { const sp = ART.SPR.mechaSideFrame({ step: Math.floor(p.dist / 2) % 8 }, 'stahl'); ART.blit(g, sp, Math.round(p.x), fuss + 1, null, p.dir > 0); if (p.x > W + 30 || p.x < -30) LEUTE.splice(i, 1); continue; }
-      const S = WORKERS.set('small', p.vi), fr = (p.carry && S.carry ? S.carry : S.walk)[Math.floor(p.dist / 2) % 8];
-      WORKERS.put(g, fr, Math.round(p.x), fuss, p.dir < 0);
-      if (p.x > W + 14 || p.x < -14) LEUTE.splice(i, 1);
+      if (p.mecha) { const sp = ART.SPR.mechaSideFrame({ step: Math.floor(p.dist / 4) % 8 }, 'stahl', 2); ART.blit(g, sp, Math.round(p.x - p.dir * (p.dist % 4)), fuss + 1, null, p.dir > 0);   /* v165: rückt nur mit jedem Schrittbild um 4 px vor, damit der Standfuß nicht rutscht */ if (p.x > W + 50 || p.x < -50) LEUTE.splice(i, 1); continue; }   // v165: kleiner Mecha aus dem Werkshof, in doppelter Auflösung gezeichnet
+      const S = WORKERS.set('big', p.vi), A = p.carry && S.carry ? S.carry : S.walk, fr = A[Math.floor(p.dist / 14 * A.length) % A.length];   // v165: dieselben Figuren wie in den Gebäuden
+      WORKERS.put(g, fr, Math.round(p.x - p.dir * (p.dist % 1.75)), fuss, p.dir < 0);   /* v165: rückt im Takt der Bilder vor */
+      if (p.x > W + 24 || p.x < -24) LEUTE.splice(i, 1);
     }
   }
   // für Tests: jemanden sofort vorbeischicken bzw. etwas an den Himmel setzen

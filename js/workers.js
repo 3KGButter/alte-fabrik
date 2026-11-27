@@ -303,7 +303,7 @@ const WORKERS = (() => {
     for (const a of sorted) {
       const W = set(a.size, a.vn !== undefined ? a.vn : a.v), S = W.S;   /* v159: vn = Rolle (Nachtwächter, Angler) */
       let s;
-      const stride = a.size === 'big' ? 16 : 7;
+      const stride = a.size === 'big' ? 14 : 7;   /* v165: innen 14 px je Doppelschritt, so weit wandert der Fuß in den Gehbildern */
       if (!isFinite(a.x)) continue; if (!isFinite(a.dist)) a.dist = 0;   /* nie mit kaputten Werten zeichnen */
       if (a.st === 'walk') { const L = a.box ? W.carry : W.walk; s = L[((Math.floor(a.dist / stride * L.length) % L.length) + L.length) % L.length]; }
       else if (a.act === 'work') s = W.work[Math.floor(time * 1.6 * tak(a).sp + tak(a).ph) % 4];   /* v150: jeder in seinem Takt */
@@ -323,7 +323,7 @@ const WORKERS = (() => {
       if (!s) continue;
       const flip = (a.st === 'walk' ? a.dir : a.face) < 0;
       const lift = a.act === 'sit' && a.st === 'act' ? (a.size === 'big' ? 4 : 2) : 0;   // sitzt auf Bank oder Kiste
-      if (a.size === 'big') put(g, s, a.x, base - lift, flip); else ART.blit(g, s, a.x, base - lift + Math.round(S.h - S.hipY - S.thigh - S.shin), null, flip);
+      if (a.size === 'big') put(g, s, a.st === 'walk' ? Math.round(a.x - (a.dir || 1) * (a.dist % (stride / 8))) : a.x, base - lift, flip);   /* v165: rückt im Takt der Bilder vor, Fuß rutscht nicht */ else ART.blit(g, s, a.x, base - lift + Math.round(S.h - S.hipY - S.thigh - S.shin), null, flip);
     }
   }
   return { set, hofSet, HOFFIG, crew, step, draw, put, front, frontB, frontSit, VAR, BIG, SMALL, crews, chFront, MEISTER, tak };

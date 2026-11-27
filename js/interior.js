@@ -973,15 +973,16 @@ const INNER_BAU = () => {
   const PTAK = {};   /* v151: Takt je Träger fest merken – w wird jedes Bild neu erzeugt, sonst ratterte die Figur */
   function drawPorter0(g, w, vi, time) {
     const W = WORKERS.set('big', vi); let s; const tk = PTAK[vi] || (PTAK[vi] = WORKERS.tak({}));
-    if (w.pose === 'walk') s = W.walk[Math.floor(w.dist / 16 * W.walk.length) % W.walk.length];
-    else if (w.pose === 'carry') s = W.carry[Math.floor(w.dist / 16 * W.carry.length) % W.carry.length];
+    if (w.pose === 'walk') s = W.walk[Math.floor(w.dist / 14 * W.walk.length) % W.walk.length];   /* v165: 14 px je Doppelschritt */
+    else if (w.pose === 'carry') s = W.carry[Math.floor(w.dist / 14 * W.carry.length) % W.carry.length];
     else if (w.pose === 'reach') s = W.reach[0];
     else if (w.pose === 'work') s = W.work[Math.floor(time * 1.6 * tk.sp + tk.ph) % 4];   /* v150: eigener Takt */
     else if (w.pose === 'phone') s = W.phone[Math.floor(time * (W.px ? 4 : .8) * tk.sp + tk.ph) % W.phone.length];
     else if (w.pose === 'coffee') s = W.coffee[(time * .4 * tk.sp + tk.ph) % 1 < .25 ? 1 : 0];
     else if (w.pose === 'stretch' || w.pose === 'wave') s = W[w.pose][Math.floor(time * 2.2 + vi) % 2];
     else s = W.idle[Math.floor(time * (W.px ? 7 : .7) * tk.sp + tk.ph * 5) % W.idle.length];
-    (w.pose === 'walk' || w.pose === 'carry' ? LATE2 : LATE).push(() => WORKERS.put(g, s, Math.round(w.x), BASE + 13, w.dir < 0));   // erst nach allen Maschinen zeichnen; v159: laufende Träger vor den Arbeitern am Platz
+    const gx = w.pose === 'walk' || w.pose === 'carry' ? w.x - (w.dir < 0 ? -1 : 1) * (w.dist % 1.75) : w.x;   /* v165: rückt im Takt der Bilder vor */
+    (w.pose === 'walk' || w.pose === 'carry' ? LATE2 : LATE).push(() => WORKERS.put(g, s, Math.round(gx), BASE + 13, w.dir < 0));   // erst nach allen Maschinen zeichnen; v159: laufende Träger vor den Arbeitern am Platz
   }
   const LATE = [], LATE2 = [];
   // Leseecke im Pförtnerhaus: Teppich, Ohrensessel, Stehlampe, Beistelltisch mit Radio, Zeitungsständer, große Pflanze

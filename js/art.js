@@ -589,9 +589,9 @@ const ART = (() => {
     p = p || {}; k = k || 1; const g = Grid(28 * k, 34 * k), CX = 13, fly = p.step === 'fly', f = fly ? 2 : p.step || 0, Bb = f % 4 < 2 ? 1 : 0, awake = p.awake !== false;   /* sackt beim Auftreten ein Pixel ab */
     const SH = ['g', 'h', 'i', 'j', 'l', 'H'], DK = ['U', 'x', 'T', 'X', 'y', 'Y'], BY = [[0, .5], [.75, .25]];
     const shade = (ramp, l, x, y) => { if (ramp === SH) l -= .15; const n = ramp.length, v = Math.max(0, Math.min(.999, (l + .25) / 1.25)) * n, i = Math.floor(v), q = v - i; return ramp[Math.min(n - 1, i + (q > BY[y & 1][x & 1] + .12 ? 1 : 0))]; };
-    const set = (x, y, c) => g.rect(Math.round(x * k), Math.round(y * k), k, k, c), rect = (x, y, w, h, c) => g.rect(Math.round(x * k), Math.round(y * k), w * k, h * k, c);
+    const set = (x, y, c) => g.rect(Math.round(x * k), Math.round(y * k), k, k, c), rect = (x, y, w, h, c) => g.rect(Math.round(x * k), Math.round(y * k), Math.round(w * k), Math.round(h * k), c);
     const ball = (cx, cy, rx, ry, ramp, dark) => { for (let Y = Math.floor((cy - ry) * k); Y <= Math.ceil((cy + ry) * k); Y++) for (let X = Math.floor((cx - rx) * k); X <= Math.ceil((cx + rx) * k); X++) { const ny = ((Y + .5) / k - cy) / ry, nxx = ((X + .5) / k - cx) / rx, d = nxx * nxx + ny * ny; if (d > 1) continue; let l = -nxx * .55 - ny * .65 + Math.sqrt(1 - d) * .52 - (dark || 0); if (d > .72) l -= .3; g.set(X, Y, shade(ramp, l, X, Y)); } };
-    const box = (x0, y0, x1, y1, ramp, dark) => { const X0 = x0 * k, X1 = (x1 + 1) * k - 1, Y0 = y0 * k, Y1 = (y1 + 1) * k - 1; for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) { const nx = ((X - X0) / Math.max(1, X1 - X0)) * 2 - 1; let l = -nx * .55 + Math.sqrt(Math.max(0, 1 - nx * nx)) * .5 - (dark || 0); if (Y < Y0 + Math.max(1, k >> 1)) l += .3; if (Y > Y1 - Math.max(1, k >> 1)) l -= .4; g.set(X, Y, shade(ramp, l, X, Y)); } };
+    const box = (x0, y0, x1, y1, ramp, dark) => { const X0 = Math.round(x0 * k), X1 = Math.round((x1 + 1) * k) - 1, Y0 = Math.round(y0 * k), Y1 = Math.round((y1 + 1) * k) - 1;   /* v165: auch für Zwischenwerte (feine Hand) */ for (let Y = Y0; Y <= Y1; Y++) for (let X = X0; X <= X1; X++) { const nx = ((X - X0) / Math.max(1, X1 - X0)) * 2 - 1; let l = -nx * .55 + Math.sqrt(Math.max(0, 1 - nx * nx)) * .5 - (dark || 0); if (Y < Y0 + Math.max(1, k >> 1)) l += .3; if (Y > Y1 - Math.max(1, k >> 1)) l -= .4; g.set(X, Y, shade(ramp, l, X, Y)); } };
     const ln = (x0, y0, x1, y1, c) => { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) * k || 1, tw = Math.max(1, Math.round(k * .7)); for (let i = 0; i <= n; i++) g.rect(Math.round((x0 + (x1 - x0) * i / n) * k), Math.round((y0 + (y1 - y0) * i / n) * k), tw, tw, c); };
     /* 8 Schrittbilder, schwerer Gang: Ein Fuß steht fest und wandert relativ zum Körper um je 2 px nach hinten (der Körper rückt genau so weit vor),
        der andere schwingt angehoben nach vorn. Bei Bild 0 und 4 stehen beide Füße (Auftreten, Körper sackt ab). */
@@ -599,28 +599,37 @@ const ART = (() => {
     const LF = fly ? { x: 2, up: 2 } : legAt((f % 8) / 8), LB = fly ? { x: -1, up: 1 } : legAt(((f % 8) / 8 + .5) % 1);   /* fly: Beine hängen im Flug */
     const leg = (dx, lift, dark) => { const t = Math.round(dx * .35), s2 = Math.round(dx * .7); box(CX + t, 22 + Bb, CX + 3 + t, 25, SH, dark); box(CX + s2, 26 - lift, CX + 2 + s2, 29 - lift, DK, dark); box(CX - 2 + dx, 30 - lift, CX + 3 + dx, 33 - lift, DK, dark); rect(CX - 2 + dx, 30 - lift, 6, 1, dark ? 'T' : 'Y'); set(CX - 2 + dx, 32 - lift, dark ? 'U' : 'D'); };   /* Stiefel mit Messingkappe an der Spitze */
     /* v158: Arm schwingt um Schulter und Ellenbogen (gedreht, nicht verschoben); vorn läuft der Versorgungsschlauch am Arm entlang */
+    /* v165: fein gezeichnet (k > 1): Ober- und Unterarm als durchgehende Zylinder statt gestapelter Kästchen, Hand ohne Löcher beim Abknicken */
+    const FEIN = k > 1, seg = (x0, y0, x1, y1, r, ramp, dark) => { const L = Math.hypot(x1 - x0, y1 - y0) || 1, ux = (x1 - x0) / L, uy = (y1 - y0) / L, vx = uy, vy = -ux, px = vx >= 0 ? 1 : -1;
+      for (let Y = Math.floor((Math.min(y0, y1) - r) * k); Y <= Math.ceil((Math.max(y0, y1) + r) * k); Y++) for (let X = Math.floor((Math.min(x0, x1) - r) * k); X <= Math.ceil((Math.max(x0, x1) + r) * k); X++) {
+        const qx = (X + .5) / k - x0, qy = (Y + .5) / k - y0, t = qx * ux + qy * uy, n = (qx * vx + qy * vy) * px / r; if (t < 0 || t > L || Math.abs(n) > 1) continue;
+        let l = -n * .55 + Math.sqrt(Math.max(0, 1 - n * n)) * .5 - (dark || 0); if (t < .5) l += .3; if (t > L - .5) l -= .4; g.set(X, Y, shade(ramp, l, X, Y)); } };
     const arm = (sw, dark) => { const ax = CX + 3, sy = 13 + Bb, a1 = -sw / 4 * .26 + .08, a2 = a1 * 1.2 + .12, e = [ax - Math.sin(a1) * 4, sy + Math.cos(a1) * 4], w = [e[0] - Math.sin(a2) * 4, e[1] + Math.cos(a2) * 4];
-      for (let t = 0; t <= 4; t++) { const px = Math.round(ax - Math.sin(a1) * t), py = Math.round(sy + Math.cos(a1) * t); box(px - 1, py, px + 1, py, DK, dark); }
-      for (let t = 1; t <= 4; t++) { const px = Math.round(e[0] - Math.sin(a2) * t), py = Math.round(e[1] + Math.cos(a2) * t); box(px - 2, py, px + 2, py, SH, dark); }
-      const ex = Math.round(e[0]), ey = Math.round(e[1]); rect(ex - 1, ey, 3, 1, dark ? 'U' : 'T'); set(ex, ey, dark ? 'T' : 'D');
-      if (!dark) { ln(CX + 7, 9 + Bb, ax + 2, sy, 'c'); ln(ax + 2, sy, ex + 2, ey, 'c'); ln(ex + 2, ey, Math.round(w[0]) + 3, Math.round(w[1]) - 1, 'b'); }
-      const Bh = Math.round(w[1]) - 20; const hx = Math.round(w[0]), a3 = a2 + .12, snap = g.a.map(r => r.slice()); rect(hx - 1, 20 + Bh, 3, 1, 'T'); box(hx - 2, 21 + Bh, hx + 2, 23 + Bh, SH, dark); for (const fx of [hx - 2, hx]) { rect(fx, 24 + Bh, 1, 2, dark ? 'U' : 'T'); set(fx, 26 + Bh, dark ? 'T' : 'X'); } rect(hx + 2, 23 + Bh, 1, 2, dark ? 'U' : 'T'); 
-      { const hp = {}; for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (g.a[y][x] !== snap[y][x]) { hp[x + ',' + y] = g.a[y][x]; g.a[y][x] = snap[y][x]; }   /* v158: Hand knickt im Handgelenk */
-        const PX = hx * k + k / 2, PY = (20 + Bh) * k, ca = Math.cos(a3), sa = Math.sin(a3); for (let y = PY - 2 * k; y <= PY + 10 * k; y++) for (let x = PX - 8 * k; x <= PX + 8 * k; x++) { const X2 = x + .5 - PX, Y2 = y + .5 - PY, c = hp[Math.floor(PX + X2 * ca + Y2 * sa) + ',' + Math.floor(PY - X2 * sa + Y2 * ca)]; if (c) g.set(Math.round(x), Math.round(y), c); } } };   /* Roboterhand */
+      if (FEIN) { seg(ax + .5, sy, e[0] + .5, e[1] + 1, 1.5, DK, dark); seg(e[0] + .5, e[1] + 1, w[0] + .5, w[1] + 1, 2.5, SH, dark); }
+      else { for (let t = 0; t <= 4; t++) { const px = Math.round(ax - Math.sin(a1) * t), py = Math.round(sy + Math.cos(a1) * t); box(px - 1, py, px + 1, py, DK, dark); }
+        for (let t = 1; t <= 4; t++) { const px = Math.round(e[0] - Math.sin(a2) * t), py = Math.round(e[1] + Math.cos(a2) * t); box(px - 2, py, px + 2, py, SH, dark); } }
+      const ex = FEIN ? e[0] : Math.round(e[0]), ey = FEIN ? e[1] + .5 : Math.round(e[1]); rect(ex - 1, ey, 3, 1, dark ? 'U' : 'T'); set(ex, ey, dark ? 'T' : 'D');
+      if (!dark) { ln(CX + 7, 9 + Bb, ax + 2, sy, 'c'); ln(ax + 2, sy, ex + 2, ey, 'c'); ln(ex + 2, ey, (FEIN ? w[0] : Math.round(w[0])) + 3, (FEIN ? w[1] : Math.round(w[1])) - 1, 'b'); }
+      const Bh = FEIN ? w[1] + 1 - 20 : Math.round(w[1]) - 20; const hx = FEIN ? w[0] : Math.round(w[0]), a3 = a2 + .12, snap = g.a.map(r => r.slice());
+      if (FEIN) for (const r of g.a) r.fill('.');   // Hand auf leerem Blatt zeichnen, damit beim Drehen kein Pixel fehlt
+      rect(hx - 1, 20 + Bh, 3, 1, 'T'); box(hx - 2, 21 + Bh, hx + 2, 23 + Bh, SH, dark); for (const fx of [hx - 2, hx]) { rect(fx, 24 + Bh, 1, 2, dark ? 'U' : 'T'); set(fx, 26 + Bh, dark ? 'T' : 'X'); } rect(hx + 2, 23 + Bh, 1, 2, dark ? 'U' : 'T'); 
+      { const hp = {}; for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) if (FEIN ? g.a[y][x] !== '.' : g.a[y][x] !== snap[y][x]) hp[x + ',' + y] = g.a[y][x];   /* v158: Hand knickt im Handgelenk */
+        for (let y = 0; y < g.h; y++) g.a[y] = snap[y];
+        const PX = hx * k + k / 2, PY = (20 + Bh) * k, ca = Math.cos(a3), sa = Math.sin(a3); for (let y = FEIN ? Math.floor(PY - 2 * k) : PY - 2 * k; y <= PY + 10 * k; y++) for (let x = FEIN ? Math.floor(PX - 8 * k) : PX - 8 * k; x <= PX + 8 * k; x++) { const X2 = x + .5 - PX, Y2 = y + .5 - PY, c = hp[Math.floor(PX + X2 * ca + Y2 * sa) + ',' + Math.floor(PY - X2 * sa + Y2 * ca)]; if (c) g.set(Math.round(x), Math.round(y), c); } } };   /* Roboterhand */
     leg(LB.x, LB.up, .9);                                  // hinteres Bein (im Schatten)
     const armS = q => Math.cos(((f % 8) / 8 + q) * Math.PI * 2 - .9) * 3.4;   /* v158: nachlaufend, schwächer */
-    arm(fly ? 2 : armS(0), .7);                                        // hinterer Arm
+    arm(fly ? 2 : armS(.5), .7);                                       // hinterer Arm (v165: schwingt mit dem vorderen Bein, also gegengleich zum hinteren)
     ball(CX + 6, 10 + Bb, 3.8, 3.6, SH, .4);           // hinterer Schulterpanzer
     ball(CX + 9, 11 + Bb, 2.6, 2, SH, .15); ball(CX + 9, 16 + Bb, 2.6, 2, SH, .3); box(CX + 7, 11 + Bb, CX + 11, 16 + Bb, SH, .15); rect(CX + 7, 13 + Bb, 5, 1, 'X'); rect(CX + 8, 18 + Bb, 3, 1, 'T'); rect(CX + 10, 7 + Bb, 1, 3, 'X'); set(CX + 11, 6 + Bb, 'Y');   /* v158: Rückentank mit Band, Düse und Auspuff */
     box(CX - 4, 20 + Bb, CX + 6, 22 + Bb, DK); set(CX - 3, 21 + Bb, 'D');   // Becken
     ball(CX + 1, 15 + Bb, 5.5, 6.5, DK); box(CX - 5, 11 + Bb, CX - 3, 18 + Bb, SH); set(CX - 5, 15 + Bb, awake ? 'W' : 'g'); set(CX - 4, 15 + Bb, awake ? 'V' : 'U');   // Rumpf, Brustplatte vorn mit Kern
-    ln(CX + 6, 18 + Bb, CX + 8, 13 + Bb, 'c'); ln(CX + 8, 13 + Bb, CX + 6, 8 + Bb, 'c'); ln(CX + 7, 18 + Bb, CX + 9, 13 + Bb, 'b');   // Versorgungsschlauch am Rücken
+    { const pd = FEIN && !fly ? Math.sin((f % 8) / 8 * Math.PI * 2 - 1.2) * .7 : 0; ln(CX + 6, 18 + Bb, CX + 8 + pd, 13 + Bb, 'c'); ln(CX + 8 + pd, 13 + Bb, CX + 6, 8 + Bb, 'c'); ln(CX + 7, 18 + Bb, CX + 9 + pd, 13 + Bb, 'b'); }   // Versorgungsschlauch am Rücken (v165: pendelt im Schritt mit, fein gezeichnet)
     leg(LF.x, LF.up, 0);                                   // vorderes Bein
     ball(CX + 3, 10 + Bb, 4.6, 4.3, SH); for (let q = 0; q < 6.28; q += .15 / k) { const X = Math.round((CX + 3 + Math.cos(q) * 2.4) * k), Y = Math.round((11 + Bb + Math.sin(q) * 2) * k); if (Math.sin(q) > 0) g.set(X, Y, 'h'); } set(CX + 1, 7 + Bb, 'H');   // vorderer Schulterpanzer
     const hx = CX - 2, hy = 6 + Bb; ball(hx, hy, 3.8, 3.8, SH);                                             // Kuppelkopf (vor der Schulter)
     rect(hx, hy - 4, 2, 1, 'h'); set(hx + 1, hy - 5, 'j'); set(hx + 1, hy - 6, awake ? 'u' : 'h'); set(hx + 3, hy - 5, 'h');   /* v158: Sensormast mit Signallampe, Antenne dahinter */
     rect(hx - 4, hy, 4, 1, 'x'); rect(hx - 4, hy + 1, 4, 1, 'U'); rect(hx - 3, hy + 2, 3, 1, 'U'); set(hx - 3, hy + 1, awake ? 'W' : 'u');   // Gesicht vorn, ein Auge
-    arm(fly ? 1 : armS(.5), 0);                                         // vorderer Arm
+    arm(fly ? 1 : armS(0), 0);                                          // vorderer Arm (v165: gegengleich zum vorderen Bein)
     return { rows: g.rows() };
   };
   SPR.mechaSideC = {}; SPR.mechaSideFrame = (p, paint, sc) => { const k = [p.step, p.awake, paint, sc || 1].join(','); return SPR.mechaSideC[k] || (SPR.mechaSideC[k] = buildSprite(B.mechaSide(p, sc || 1).rows, paintPal(paint))); };
