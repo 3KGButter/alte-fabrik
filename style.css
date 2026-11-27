@@ -453,13 +453,13 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .lrechts { justify-self: end; }
 .lnav { background: #17121cb0; border-radius: 6px; padding: 4px; }
 /* Überschrift als Fallblattanzeige */
-.lseite { display: flex; gap: .35em; justify-content: center; font-size: clamp(20px, 3.4vh, 46px); text-shadow: none; }
-.lwort { display: flex; gap: .08em; }
-.lfb { display: inline-grid; place-items: center; width: .82em; height: 1.25em; line-height: 1; color: #fff1d2; background: linear-gradient(#22202c 0 49%, #0e0d14 49% 51%, #1b1a24 51%); border: 2px solid #0b0a10; border-radius: 3px; box-shadow: 0 3px 0 #000a; }
-.lfb.klapp { animation: lklapp .12s ease-out; }
+.lseite { display: flex; gap: .08em; justify-content: center; font-size: clamp(20px, 3.4vh, 46px); text-shadow: none; }
+.lfb { display: inline-grid; place-items: center; flex: none; box-sizing: border-box; width: .9em; height: 1.25em; line-height: 1; color: #fff1d2; background: linear-gradient(#22202c 0 49%, #0e0d14 49% 51%, #1b1a24 51%); border: clamp(1px, .06em, 2px) solid #0b0a10; border-radius: 3px; box-shadow: 0 3px 0 #000a; }
+.lfb.leer { color: transparent; }   /* v164: leere Blätter bleiben als Platte sichtbar */
+.lfb.klapp { animation: lklapp .08s ease-out; }
 @keyframes lklapp { from { transform: scaleY(.15); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .lfb.klapp { animation: none; } }
-@media (max-width: 900px), (orientation: portrait) { .leit { --lside: 0px; } .lfb { width: .7em; } }
+@media (max-width: 900px), (orientation: portrait) { .leit { --lside: 0px; } }
 
 /* Entwurf: Levelstufen als Treppe */
 .ltreppe { flex: 1; min-height: 0; position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); align-items: end; gap: 0 3px; padding-top: 1em; }
@@ -484,7 +484,7 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 @media (max-width: 600px), (max-height: 500px) {
   .ltafel { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 12px 10px; display: block; }
   .lchips { justify-content: flex-start; }
-  .lseite { font-size: clamp(12px, 4.3vw, 22px); flex-wrap: wrap; row-gap: 4px; }   /* auch „Klassen im Vergleich“ passt in eine Zeile */
+  .lseite { font-size: clamp(12px, 4.3vw, 22px); flex-wrap: nowrap; }   /* v164: feste Blattzahl, Größe passt sich an */
   .lliste { display: block; }
   .lliste li { padding: .34em .3em; gap: .5em; }
   /* Hall of Fame: Platz, Name, Klasse, Level, XP in einer Zeile */
@@ -531,9 +531,8 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .llv.lgo { color: var(--l-amber); font-size: 1.5em; width: 2.4em; line-height: .6; }   /* Breite = 3,6em der Zeile */
 .lnext.lleerb { visibility: hidden; }
 /* v143 Überschrift: mehr Abstand zwischen den Wörtern, hellere Klapptafeln heben sich von der Ziegelwand ab */
-.lseite { gap: .8em; }
+.lseite { gap: .1em; }
 .lfb { color: #fff6e0; background: linear-gradient(#4a4658 0 49%, #1c1a24 49% 51%, #3e3a4c 51%); border-color: #8c7a52; box-shadow: 0 3px 0 #000a, 0 0 0 1px #000c; }
-@media (max-width: 900px), (orientation: portrait) { .lseite { gap: .6em; } }
 /* v143 Abmelden bestätigen: Schild unter dem Knopf statt breiterem Knopf (lief rechts aus dem Kasten) */
 #lAus { position: relative; }
 #lAus.warn::after { content: 'Nochmal tippen zum Abmelden'; position: absolute; top: calc(100% + 8px); right: -4px; z-index: 30; white-space: nowrap; padding: .35em .7em; font-size: .8em; background: #4a2028; color: #ffd0b0; border: 2px solid #f08a6a; border-radius: 4px; box-shadow: 0 3px 0 #000a; pointer-events: none; }
@@ -553,3 +552,9 @@ html.leitmodus, html.leitmodus body { background: #141826; overflow: hidden; }
 .ladebalken { width: 180px; height: 8px; margin: 10px auto 0; border-radius: 2px; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); overflow: hidden; }
 .ladebalken i { display: block; height: 100%; width: 4%; background: linear-gradient(#ffd56a, #e8a83a); transition: width .25s ease-out; }
 #loading { transition: opacity .35s; } #loading.weg { opacity: 0; pointer-events: none; }
+
+/* v164: Stand XP-Rechner und Spielversion unten links in der Reiterleiste; Reiter bleiben mittig */
+.lnav { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; }
+.lnav .lstand { justify-self: start; align-self: center; padding: 0 6px; color: #9ba7c2; font-size: .8em; line-height: 1.2; white-space: pre; overflow: hidden; text-align: left; }
+.lnav .lchips { min-width: 0; grid-column: 3; } .lnav .lstand { grid-column: 2; } .lnav #lZur { grid-column: 1; } .lnav #lVor { grid-column: 4; }
+@media (max-width: 900px), (orientation: portrait) { .lnav { grid-template-columns: auto minmax(0, 1fr) auto; } .lnav .lchips { grid-column: 2; } .lnav #lVor { grid-column: 3; } }

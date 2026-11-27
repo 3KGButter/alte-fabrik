@@ -17,9 +17,9 @@ const WERKMEISTER = (() => {
     ["Erklärvideo: Was ist", ["Draufsicht unter die Vorderansicht, Seitenansicht von links, rechts daneben.", "Die Vorderansicht zeigt das Werkstück von seiner aussagekräftigsten Seite!"]],
     ["Regeln: Darstellen von verdeckten Kanten", ["Verdeckte Kanten zeichnest du als schmale Strichlinie.", "Strichlinien beginnen und enden an einer Kante mit einem Strich.", "Bemaße lieber an sichtbaren Kanten als an verdeckten!"]],
     ["Regeln: Darstellen und Bemaßen von schrägen", ["Eine schräge Fläche ist in einer Ansicht eine Linie, in den anderen eine Fläche.", "Schrägen bemaßt du mit zwei Längen oder mit Länge und Winkel."]],
-    ["Regeln: Darstellen und Bemaßen von Drehteilen", ["Jedes Drehteil bekommt eine Mittellinie entlang der Drehachse.", "Durchmesser trägst du in der Längsansicht mit Ø ein!", "Oft reicht bei Drehteilen eine Ansicht, das Ø zeigt, dass es rund ist.", "Fasen bemaßt du zum Beispiel als 2×45°."]],
+    ["Regeln: Darstellen und Bemaßen von Drehteilen", ["Jedes Drehteil bekommt eine Mittellinie entlang der Drehachse.", "Durchmesser trägst du in der Längsansicht mit Ø ein!", "Bei Drehteilen reicht oft eine Ansicht: Das Ø zeigt, dass es rund ist.", "Fasen bemaßt du zum Beispiel als 2×45°."]],
     ["Regeln: Schnittdarstellungen im Vollschnitt", ["Schnittflächen schraffierst du mit schmalen Volllinien unter 45°.", "Alle Schnittflächen eines Teils bekommen dieselbe Schraffur!", "Im Schnitt fallen die verdeckten Kanten weg.", "Den Schnittverlauf zeigst du mit Strichpunktlinie und Buchstaben, zum Beispiel A–A."]],
-    ["Regeln: Schnittdarstellungen im Halb", ["Halbschnitt: eine Hälfte geschnitten, die andere Ansicht, getrennt durch die Mittellinie.", "Im Teilschnitt begrenzt eine Freihandlinie den geschnittenen Bereich!"]],
+    ["Regeln: Schnittdarstellungen im Halb", ["Halbschnitt: eine Hälfte als Schnitt, die andere als Ansicht, getrennt durch die Mittellinie.", "Im Teilschnitt begrenzt eine Freihandlinie den geschnittenen Bereich!"]],
     ["Regeln: Gewindedarstellung", ["Außengewinde: Außendurchmesser breit, Kerndurchmesser schmal.", "Innengewinde: genau umgekehrt, der Kern ist breit.", "Der schmale Gewindekreis ist nur ein Dreiviertelkreis!", "Gewinde bemaßt du mit M und Nenndurchmesser, zum Beispiel M10!"]]
   ];
   const norm = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();

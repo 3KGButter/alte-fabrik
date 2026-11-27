@@ -283,9 +283,9 @@
   }
   function goalText() {
     const u = unclaimed().length;
-    if (!tutSeen()) return `Neu hier? <strong>Tippe auf das Eingangstor</strong> (links): dort erfährst du, wie die Fabrik funktioniert.`;
+    if (!tutSeen()) return `Neu hier? <strong>Tippe links auf das Eingangstor</strong>, dort wird alles erklärt.`;
     if (u) return `Ziel: <strong>Öffne die ${u} Kiste${u > 1 ? 'n' : ''} am Lieferwagen</strong>`;
-    for (const b of BUILDINGS) { const d = bDef(b); if (!built(b) && areaOpen(d.area) && !d.optional) return gears() >= d.gears ? `Ziel: <strong>Repariere ${d.name}</strong> (1 Bauplan + ${d.gears} Zahnräder)` : `Ziel: <strong>${d.name} reparieren</strong>: dir fehlen noch ${d.gears - gears()} Zahnräder. Erledige Quests in Mebis!`; }
+    for (const b of BUILDINGS) { const d = bDef(b); if (!built(b) && areaOpen(d.area) && !d.optional) return gears() >= d.gears ? `Ziel: <strong>Repariere ${d.name}</strong> (1 Bauplan + ${d.gears} Zahnräder)` : `Ziel: <strong>Repariere ${d.name}</strong>. Dir fehlen noch ${d.gears - gears()} Zahnräder: Erledige Quests in Mebis.`; }
     for (const b of BUILDINGS) if (built(b)) for (const s of stationsOf(b)) if (!stOf(s)) return `Ziel: <strong>Repariere ${sDef(s).name}</strong> in ${bDef(b).name} (${sDef(s).gears} Zahnräder)`;
     const next = ['ms2', 'ms3', 'ms4'].find(a => !areaOpen(a));
     if (next) { const prev = 'MS' + (+next.slice(2) - 1), n = D.quests.filter(q => q.ms === prev && q.hq && !q.done).length; return `Ziel: <strong>Noch ${n} Hauptquest${n === 1 ? '' : 's'} in ${prev}</strong>, dann öffnet ${R().areas.find(a => a.id === next).name}.`; }
@@ -297,7 +297,7 @@
   const INFO_NAME = { gears: 'Zahnräder', plans: 'Baupläne', power: 'Strom', store: 'Teilelager' };
   const MAKER = { blech: 'die Abkantbank', fraes: 'die Fräsmaschine', dreh: 'die Drehmaschine', gewinde: 'der Gewindeschneidplatz', baugruppe: 'der Montageplatz' };
   function infoText(k) {
-    if (k === 'gears') return allesAusgebaut_(S()) ? 'Zahnräder: Deine Fabrik ist komplett ausgebaut, Zahnräder brauchst du nicht mehr.' : 'Zahnräder: Du bekommst sie aus den Kisten für erledigte Quests (10 XP = 1 Zahnrad). Damit reparierst du und baust aus.';
+    if (k === 'gears') return allesAusgebaut_(S()) ? 'Zahnräder: Deine Fabrik ist komplett ausgebaut, Zahnräder brauchst du nicht mehr.' : 'Zahnräder: Für erledigte Quests, 10 XP = 1 Zahnrad. Damit reparierst du Gebäude und baust Maschinen aus.';
     if (k === 'plans') return 'Baupläne: einer für jeden offenen Bereich. Mit Bauplan und Zahnrädern reparierst du ein Gebäude.';
     if (k === 'power') return `Strom: ${onCount_(S())} von ${slotTxt(S())} Maschinen können gerade laufen. Mehr Anschlüsse gibt es durch den Ausbau des Notstromaggregats oder das Kraftwerk.`;
     if (k === 'store') return `Teilelager: Jede Werkstück-Sorte hat ihr eigenes Regal mit Platz für ${fmt(storeCap_(S()))} Stück. Baue das Teilelager in der Blechwerkstatt aus, dann passt mehr hinein.`;
@@ -455,7 +455,7 @@
   const wmTips = () => WERKMEISTER.bekannt(D.quests);
   function meisterHTML() {
     const frei = freieQuests(), fl = D.quests.filter(q => frei[q.n]).sort((a, b) => (b.hq ? 1 : 0) - (a.hq ? 1 : 0)), u = unclaimed().length, hh = new Date().getHours();
-    const gruss = hh < 11 ? 'Servus, guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!';
+    const gruss = hh < 11 ? 'Guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!';
     const satz = u ? `Am Lieferwagen ${u > 1 ? 'warten' : 'wartet'} noch ${u} Kiste${u > 1 ? 'n' : ''} auf dich. Hol sie dir, bevor du weitermachst.`
       : !fl.length ? (D.quests.every(q => q.done) ? 'Alles erledigt. Respekt, so kenn ich dich!' : 'Gerade ist nichts Neues frei. Schau bald wieder rein.')
       : fl.length === 1 ? 'Eine Sache kannst du jetzt anpacken.' : `${fl.length} Sachen kannst du jetzt anpacken.`;   /* v150: keine Reihenfolge vorgeben, HQ oder NQ wählen die Schüler selbst */
@@ -480,7 +480,7 @@
     if (!WMB.gruss && t >= WMB.next) { const hh = new Date().getHours();
       WMB.gruss = true; WMB.next = t + (window.WM_SOFORT ? 2500 : 30000); WMB.bis = t + (window.WM_SOFORT ? 1800 : 6500);
       /* v159: die Vorstellung kommt nur beim allerersten Besuch, danach ein kurzer Gruß mit einem Tipp */
-      const gr = hh < 11 ? 'Servus, guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!'; let kennt = false; try { kennt = !!localStorage.getItem('af_wm_kennt'); localStorage.setItem('af_wm_kennt', '1'); } catch (e) {}
+      const gr = hh < 11 ? 'Guten Morgen!' : hh < 14 ? 'Mahlzeit!' : hh < 18 ? 'Servus!' : 'Guten Abend!'; let kennt = false; try { kennt = !!localStorage.getItem('af_wm_kennt'); localStorage.setItem('af_wm_kennt', '1'); } catch (e) {}
       const tp = kennt ? wmTips() : []; el.textContent = !kennt ? gr + ' Ich bin der Werkmeister. Tipp mich an, dann sag ich dir, was du jetzt anpacken kannst.' : tp.length ? gr + ' ' + tp[Math.floor(Math.random() * tp.length)] : gr + ' Schön, dass du da bist.';
       el.hidden = false; wmPos(); requestAnimationFrame(() => el.classList.add('show')); SFX.play('meister'); window.WM_WINK = t + 2600; return; }   /* v152: winkt zum Gruß */
     if (t < WMB.next || WMB.n >= 4) return;
@@ -542,7 +542,7 @@
     const st = S();
     let h = `<h2>Meine Fabrik</h2><p>${img('power')} Strom: ${onCount_(st)} von ${slotTxt(st)} Anschlüssen belegt${built('kraftwerk') ? ' (das Kraftwerk versorgt alle Maschinen)' : ''}. Welche Maschine läuft, schaltest du hier.</p>`;
     const capS = storeCap_(st), full = PARTS.some(k => (st.store[k] || 0) >= capS);
-    h += `<h3>Teilelager · je Sorte bis ${fmt(capS)}</h3>${full ? '<p class="small">Ein Regal ist voll: Diese Maschine kann erst wieder abgeben, wenn Platz ist. Teile, die du gerade nicht brauchst, kannst du entsorgen oder die Maschine ausschalten.</p>' : ''}` + PARTS.map(k => {
+    h += `<h3>Teilelager · je Sorte bis ${fmt(capS)}</h3>${full ? '<p class="small">Ein Regal ist voll. Die Maschine dazu liefert erst wieder, wenn Platz ist. Entsorge Teile oder schalte die Maschine aus.</p>' : ''}` + PARTS.map(k => {
       const have = Math.floor(st.store[k] || 0);
       let r = `<div class="row"><img class="pv" src="${IC[k]}" alt=""><div class="grow"><div class="t">${esc(R().parts[k].name)} <span class="small ${have >= capS ? 'warnc' : 'muted'}">${fmt(have)} / ${fmt(capS)}</span></div><div class="bar sm"><div style="width:${Math.min(100, Math.round(have / capS * 100))}%"></div></div></div><button class="btn x icon" data-act="trash" data-id="${k}" ${have ? '' : 'disabled'} title="${trashOpen === k ? 'Abbrechen' : 'Entsorgen'}" aria-label="${trashOpen === k ? 'Abbrechen' : 'Entsorgen'}">${img(trashOpen === k ? 'close' : 'trash')}</button></div>`;
       if (trashOpen === k && have) r += `<div class="row trash"><span class="grow">${img('trash')}</span>${[50, 250, 1000].filter(n => n < have).map(n => `<button class="btn x" data-act="discard" data-id="${k}:${n}">${fmt(n)}</button>`).join('')}<button class="btn x bad" data-act="discard" data-id="${k}:${have}">alle ${fmt(have)}</button></div>`;
@@ -605,7 +605,7 @@
     return `<h2>Ehrentafel</h2><p>${got} von ${list.length} Badges verdient. Tippe ein Badge an.</p><canvas id="bcv" width="${BADGEROOM.W}" height="${BADGEROOM.H}" aria-label="Ehrentafel mit Badges"></canvas><p class="bcap" id="bcap"></p>`;
   }
   function badgeHint(b) { if (b.mecha) return 'den Riesen-Mecha im Kraftwerk fertig bauen'; if (b.hq) return 'alle Hauptquests ' + b.hq.join(', '); if (b.all) return 'alle Quests ' + b.all[0] + '–' + b.all[b.all.length - 1]; return b.quest.replace(/\\./g, '.').replace(/\\s\*/g, ' ') + ' bestanden'; }
-  function placedHTML(p) { const d = R().catalog[p.item], nm = esc(d ? d.name : p.item); return `<h2>${nm}</h2><p>Willst du das wegräumen? Es kommt zurück in deinen Katalog. Dort kannst du es auch für die Hälfte verkaufen.</p><div class="cat one"><div class="catimg"><canvas data-prev="${p.item}" width="1" height="1"></canvas></div><b>${nm}</b><div class="catbtns"><button class="btn x icon place" data-act="unplace" data-id="${p.m}:${p.slot}:${p.lvl || 0}" aria-label="${nm} wegräumen" title="Wegräumen">${ICO_TAKE}</button></div></div>`; }
+  function placedHTML(p) { const d = R().catalog[p.item], nm = esc(d ? d.name : p.item); return `<h2>${nm}</h2><p>Wegräumen? Es kommt zurück in den Katalog. Dort kannst du es auch zum halben Preis verkaufen.</p><div class="cat one"><div class="catimg"><canvas data-prev="${p.item}" width="1" height="1"></canvas></div><b>${nm}</b><div class="catbtns"><button class="btn x icon place" data-act="unplace" data-id="${p.m}:${p.slot}:${p.lvl || 0}" aria-label="${nm} wegräumen" title="Wegräumen">${ICO_TAKE}</button></div></div>`; }
   function menuHTML() {
     const u = D.user;
     let h = `<h2>Menü</h2><p><b>${esc(u.tag)}</b> · ${esc(u.klasse || '')} · ${fmt(u.xp)} XP · Level ${u.level}${(S().stamps || 0) >= R().orders.stampsForTitle ? ' · ' + esc(R().orders.title) : ''}</p>
@@ -764,12 +764,12 @@
 
   // ---------- Fenster: Einführung am Tor ----------
   const TUT = [
-    { ic: ['gears'], t: 'Willkommen in der Alten Fabrik!', p: 'Diese Fabrik stand lange still. Mit jeder Quest, die du erledigst, erwacht ein Stück davon wieder zum Leben. Du kannst hier nichts kaputt machen und nichts verlieren. Und keine Sorge: Die Fabrik zählt nicht für deine Noten.' },
+    { ic: ['gears'], t: 'Willkommen in der Alten Fabrik!', p: 'Die Fabrik stand lange still. Jede erledigte Quest erweckt ein Stück davon wieder zum Leben. Du kannst nichts kaputt machen oder verlieren, und für deine Noten zählt die Fabrik nicht.' },
     { ic: ['book', 'gears'], t: 'Quests bringen Kisten', p: 'Hast du eine Quest erledigt, rollt der Lieferwagen ans Tor und bringt eine Kiste für dich. Tippe auf den Wagen: In jeder Kiste stecken Zahnräder. Für je 10 XP gibt es 1 Zahnrad.' },
     { ic: ['plans', 'gears'], t: 'Reparieren', p: 'Für jeden offenen Bereich bekommst du einen Bauplan. Mit Bauplan und Zahnrädern reparierst du ein Gebäude. Dein erstes Ziel ist das Pförtnerhaus gleich hinter dem Tor.' },
     { ic: ['blech', 'power'], t: 'Maschinen arbeiten für dich', p: 'In den Gebäuden setzt du Maschinen wieder instand. Sie stellen Werkstücke her, auch wenn du gerade nicht da bist. Schau ab und zu vorbei und hol die produzierten Teile ab. Beachte, dass jede Maschine Strom benötigt!' },
     { ic: ['clip', 'cart', 'medal'], t: 'Aufträge, Katalog, Ehrentafel', p: 'Mit deinen Werkstücken kannst du die Wochenaufträge erfüllen und Dekoration für deine Fabrik kaufen. Deine Badges aus dem Questbuch hängen an der Ehrentafel im Pförtnerhaus.' },
-    { ic: ['book', 'rank'], t: 'Schritt für Schritt', p: 'Schaffst du alle Hauptquests eines Meilensteins (MS), öffnet sich der nächste Bereich. Ganz rechts auf dem Hügel wacht der Kraft-Golem vor dem Kraftwerk. Jeder kleine Schritt zählt. Viel Spaß beim Wiederaufbau!' }
+    { ic: ['book', 'rank'], t: 'Schritt für Schritt', p: 'Schaffst du alle Hauptquests eines Meilensteins (MS), öffnet sich der nächste Bereich. Ganz rechts versperrt der Kraft-Golem das Kraftwerk. Du besiegst ihn mit der 1. Arbeitsprobe. Viel Spaß beim Wiederaufbau!' }
   ];
   let tutI = 0, tutMax = 0, badgeSel = -1;
   function modal(title, html, cls) { $('mTitle').textContent = title; $('mBody').innerHTML = html; $('modal').className = 'modal ' + (cls || ''); $('modal').classList.remove('hidden'); }

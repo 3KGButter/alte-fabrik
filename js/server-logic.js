@@ -58,7 +58,7 @@ const REGELN = {
                 desc: 'Liefert Strom: Stufe 1 versorgt eine Maschine, Stufe 2 zwei, Stufe 3 drei.' },
     abkant:   { name: 'Abkantbank',          building: 'blechwerkstatt', gears: 40,  up: [40, 90],   out: 'blech', rate: [1, 2, 4], sw: 'Abkantbank' },
     lager:    { name: 'Teilelager',          building: 'blechwerkstatt', gears: 20,  up: [70, 180],   sw: 'Lager',
-                desc: 'Ein Regal je Werkstück-Sorte: 100 Teile pro Sorte ohne Reparatur, dann 400 / 1.000 / 2.500.' },
+                desc: 'Ein Regal je Sorte: 100 Teile, mit jeder Ausbaustufe mehr (400 / 1.000 / 2.500).' },
     fraese:   { name: 'Fräsmaschine',        building: 'maschinenhalle', gears: 80,  up: [50, 120],  out: 'fraes', rate: [0.5, 1, 2], sw: 'Fraese' },
     dreh:     { name: 'Drehmaschine',        building: 'maschinenhalle', gears: 80,  up: [50, 120],  out: 'dreh',  rate: [0.5, 1, 2], sw: 'Drehmaschine' },
     gewinde:  { name: 'Gewindeschneidplatz', building: 'prueflabor',     gears: 90,  up: [50, 100],  out: 'gewinde', rate: [0.5, 1, 2], sw: 'Gewinde' },

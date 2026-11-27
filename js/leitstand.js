@@ -96,11 +96,11 @@ const LEITSTAND = (() => {
     root = document.createElement('div'); root.id = 'leit'; root.className = 'leit';
     root.innerHTML = `<header class="lhead"><div class="ltitel"><canvas class="emblem" data-emblem width="1" height="1" aria-hidden="true"></canvas><div><div class="lname">Leitstand</div><div class="lsub">Die Alte Fabrik</div></div></div>
       <h1 class="lseite" id="lSeite" aria-live="polite"></h1>
-      <div class="lrechts"><span class="luhr" id="lUhr"></span><span class="lstand" id="lStand"></span>
+      <div class="lrechts"><span class="luhr" id="lUhr"></span>
         <button class="lknopf" id="lPause" aria-label="Automatisch weiterblättern anhalten"></button><button class="lknopf" id="lVoll" aria-label="Vollbild">${ICO.voll}</button><button class="lknopf" id="lAus" aria-label="Abmelden">${ICO.aus}</button></div></header>
       <main class="lrahmen"><i class="lglanz" aria-hidden="true"></i><div class="lschirm" id="lSchirm"></div></main>
       <div class="lband" aria-hidden="true"></div>
-      <nav class="lnav"><button class="lpfeil" id="lZur" aria-label="Vorherige Tafel">◀</button><div class="lchips" id="lChips" role="tablist" aria-label="Tafel wählen"></div><button class="lpfeil" id="lVor" aria-label="Nächste Tafel">▶</button></nav>`;
+      <nav class="lnav"><button class="lpfeil" id="lZur" aria-label="Vorherige Tafel">◀</button><span class="lstand" id="lStand"></span><div class="lchips" id="lChips" role="tablist" aria-label="Tafel wählen"></div><button class="lpfeil" id="lVor" aria-label="Nächste Tafel">▶</button></nav>`;
     document.body.appendChild(root);
     try { const E = ART.EMBLEM, c = root.querySelector('[data-emblem]'); if (E && c) { c.width = E.c.width; c.height = E.c.height; c.getContext('2d').drawImage(E.c, 0, 0); } } catch (e) {}
     const $ = id => root.querySelector('#' + id);
@@ -135,26 +135,32 @@ const LEITSTAND = (() => {
     if (pg.id === 'zaehler') hochzaehlen(sch);
     if (pg.id === 'level') kletterer(sch);
   }
-  // Überschrift wie eine Fallblattanzeige: jedes Blatt klappt kurz durch und bleibt dann stehen
-  const ZEICHEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ0123456789';
-  let fallTimer = 0;
-  /* v159: lange Überschriften (Produktionszähler, Klassen im Vergleich) werden kleiner, damit die Kästen links und rechts einzeilig bleiben */
-  function passen(el) { el.style.fontSize = ''; const head = el.parentElement; if (!head || getComputedStyle(head).gridTemplateColumns.split(' ').length !== 3) return;
-    const re = head.querySelector('.lrechts'), li = head.querySelector('.ltitel'), frei = head.clientWidth - 2 * Math.max(re.scrollWidth, li.scrollWidth) - 2 * 12 - 6, b = el.scrollWidth;
-    if (b > frei && b > 0) el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * Math.max(.55, frei / b)) + 'px'; }
+  // Überschrift als Fallblattanzeige wie am Bahnhof (v164): immer gleich viele, gleich große Blätter (so viele, wie der längste Titel braucht).
+  // Der Titel steht mittig, übrige Blätter bleiben leer. Beim Wechsel klappt jedes Blatt der Reihe nach durchs Alphabet bis zu seinem Zeichen.
+  const ZEICHEN = ' ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜabcdefghijklmnopqrstuvwxyzäöüß0123456789';
+  let fallTimer = 0, fbN = 0;
+  function passen(el) { const head = el.parentElement; if (!head || !fbN) return; el.style.fontSize = '';
+    const drei = getComputedStyle(head).gridTemplateColumns.split(' ').length === 3, re = head.querySelector('.lrechts'), li = head.querySelector('.ltitel');
+    const frei = drei ? head.clientWidth - 2 * Math.max(re.scrollWidth, li.scrollWidth) - 2 * 12 - 8 : head.clientWidth - 8;
+    const gr = parseFloat(getComputedStyle(el).fontSize), noetig = fbN * 1.0 * gr;
+    if (noetig > frei && frei > 0) el.style.fontSize = Math.max(9, gr * frei / noetig) + 'px'; }
   window.addEventListener('resize', () => { const el = root && root.querySelector('#lSeite'); if (el) passen(el); });
   function fallblatt(el, text) {
     el.setAttribute('aria-label', text); clearInterval(fallTimer);
-    const ruhig = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.innerHTML = text.split(' ').map(w => `<span class="lwort">${w.split('').map(c => `<span class="lfb" aria-hidden="true">${esc(ruhig ? c : ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)])}</span>`).join('')}</span>`).join('');
-    passen(el);
-    if (ruhig) return;
-    const bl = Array.from(el.querySelectorAll('.lfb')), ziel = text.replace(/ /g, '').split(''), start = performance.now();
-    fallTimer = setInterval(() => {
-      const t = performance.now() - start; let fertig = true;
-      bl.forEach((b, i) => { const ende = 180 + i * 45; if (t < ende) { fertig = false; const z = ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)]; if (b.textContent !== z) { b.textContent = z; b.classList.remove('klapp'); void b.offsetWidth; b.classList.add('klapp'); } } else if (b.textContent !== ziel[i]) { b.textContent = ziel[i]; b.classList.remove('klapp'); void b.offsetWidth; b.classList.add('klapp'); } });
-      if (fertig) clearInterval(fallTimer);
-    }, 70);
+    const N = Math.max(...pages.map(p => p.titel.length), text.length);
+    if (N !== fbN || el.children.length !== N) { fbN = N; el.innerHTML = '<span class="lfb" aria-hidden="true"> </span>'.repeat(N); passen(el); }
+    const links = Math.floor((N - text.length) / 2), ziel = (' '.repeat(links) + text).padEnd(N).split('');
+    const bl = Array.from(el.children), ruhig = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const setz = (b, z) => { b.textContent = z; b.classList.toggle('leer', z === ' '); if (!ruhig) { b.classList.remove('klapp'); void b.offsetWidth; b.classList.add('klapp'); } };
+    // Weg je Blatt: alle Zeichen zwischen dem alten und dem neuen (höchstens die letzten 10, damit es nicht zu lange dauert)
+    const wege = bl.map((b, i) => { const von = ZEICHEN.indexOf(b.textContent), nach = ZEICHEN.indexOf(ziel[i]);
+      if (b.textContent === ziel[i]) return []; if (ruhig || von < 0 || nach < 0) return [ziel[i]];
+      const w = []; for (let k = (von + 1) % ZEICHEN.length; ; k = (k + 1) % ZEICHEN.length) { w.push(ZEICHEN[k]); if (k === nach) break; } return w.slice(-10); });
+    let schritt = 0;
+    const tick = () => { let fertig = true;
+      wege.forEach((w, i) => { const s = schritt - Math.floor(i / 2); if (s >= 0 && s < w.length) setz(bl[i], w[s]); if (s < w.length - 1) fertig = false; });
+      schritt++; if (fertig) clearInterval(fallTimer); };
+    tick(); if (!ruhig) fallTimer = setInterval(tick, 55); else while (wege.some((w, i) => schritt - Math.floor(i / 2) < w.length)) tick();
   }
   // Kleine Figur steigt die Treppe hinauf, winkt oben und beginnt von vorn
   let kletterRaf = 0;
